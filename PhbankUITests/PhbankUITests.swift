@@ -49,10 +49,10 @@ final class PhbankUITests: XCTestCase {
     @MainActor
     func testAddingAnEntryShowsItOnThePage() throws {
         let app = launchApp()
-        let addButton = app.buttons.matching(
-            NSPredicate(format: "identifier == 'add-entry' AND isHittable == true")
-        ).firstMatch
-        XCTAssertTrue(addButton.waitForExistence(timeout: 5))
+        let addButtons = app.buttons.matching(identifier: "add-entry")
+        XCTAssertTrue(addButtons.firstMatch.waitForExistence(timeout: 5))
+        // The pager keeps neighbouring pages alive; tap the one that is on screen.
+        let addButton = addButtons.allElementsBoundByIndex.first { $0.isHittable } ?? addButtons.firstMatch
         addButton.tap()
 
         let store = app.textFields["field-store"]

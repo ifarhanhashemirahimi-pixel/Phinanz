@@ -222,7 +222,7 @@ struct GeminiServiceTests {
         ]}
         """
         let result = try GeminiService.decodeExpenses(from: text)
-        #expect(result.map(\.store) == ["Ok"])
+        #expect(result.map { $0.store } == ["Ok"])
     }
 
     @Test func reportsBadAnswers() {
@@ -369,7 +369,7 @@ struct IncomeTests {
     }
 
     @Test func incomeCategoriesAreSeparate() {
-        #expect(ExpenseCategory.incomeCases.allSatisfy(\.isIncome))
+        #expect(ExpenseCategory.incomeCases.allSatisfy { $0.isIncome })
         #expect(ExpenseCategory.expenseCases.allSatisfy { !$0.isIncome })
         #expect(ExpenseCategory.parse("salary") == .salary)
         #expect(ExpenseCategory.parse("otherIncome") == .otherIncome)
