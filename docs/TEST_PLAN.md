@@ -17,6 +17,9 @@ Most risk sits in pure logic (money parsing, date handling, AI output) and in a 
 | Budgets | Unit | `BudgetTests` | Levels, threshold crossing, month filter |
 | Recurring payments | Unit | `RecurringTests` | Clamping, catch-up, start date, cap, idempotent run |
 | Widget snapshot | Unit | `WidgetSnapshotTests` | Today / month / balance numbers |
+| Backup and restore | Unit | `BackupTests` | Round trip, version check, invalid rows dropped |
+| Reminders and deep links | Unit | `ReminderTests` | Evening-before dates, horizon, `phinanz://` URLs |
+| Category suggestions | Unit | `CategorySuggesterTests` | History wins, German merchant keywords, unknown stores |
 | Launch, tab bar, settings, add entry | UI | `PhbankUITests` | Critical happy paths |
 | Camera, microphone, Face ID, real Gemini call | Manual | below | Hardware or secrets required |
 
@@ -34,6 +37,15 @@ Coverage goal: 90 %+ of `Services/` and `Models/`, UI covered by flows rather th
 8. **Widget**: add small, medium and Lock Screen widgets; add an entry in the app and check the widget updates; check it shows zero for "today" after midnight.
 9. **Recurring**: create a payment with a start date three months ago and check exactly three entries appear; reopen the app → no duplicates.
 10. **Export**: share the CSV to Files and open it in Numbers/Excel (German locale): columns split, decimals correct, umlauts intact.
+11. **Backup**: back up, delete all data, restore the file → every entry, budget and recurring payment is back; restoring the same file twice gives the same result (restore replaces, it does not add).
+12. **Reminders**: switch on the daily reminder (allow notifications) and check it fires; a recurring payment due tomorrow gives a notice at 18:00 today.
+13. **Siri & Shortcuts**: "Add an expense in PHINANZ" in all three languages; the Shortcuts app lists the actions; Spotlight shows them.
+14. **Control Center**: add the "New Entry" control; tapping it opens the editor for today.
+15. **iPad**: the tab bar turns into a sidebar; sheets and the editor fit.
+
+## Visual QA with the snapshot renderer
+
+Debug builds contain `Debug/SnapshotRenderer.swift`. When the folder `snapshots/` next to the Xcode project contains a file named `REQUEST`, running the app in the simulator renders about 20 screens (light, dark, German, Persian, empty and busy days) as PNG files into that folder and writes `log.txt`. Delete `REQUEST` to switch it off; release builds never include the renderer. The folder is ignored by git.
 
 ## Example edge cases worth keeping in mind
 

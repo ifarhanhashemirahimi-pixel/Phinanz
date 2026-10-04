@@ -7,6 +7,7 @@
 //
 
 import Foundation
+import SwiftData
 import WidgetKit
 
 /// Keep in sync with PhinanzWidget/WidgetSnapshot.swift.
@@ -50,5 +51,15 @@ enum WidgetBridge {
         if defaults.data(forKey: WidgetSnapshot.key) == data { return }
         defaults.set(data, forKey: WidgetSnapshot.key)
         WidgetCenter.shared.reloadAllTimelines()
+    }
+
+    /// Recomputes and publishes the widget numbers straight from the store
+    /// (used after Siri / Shortcuts changes data while the UI is not running).
+    @MainActor
+    static func refresh(from context: ModelContext) {
+        let entries = (try? context.fetch(FetchDescriptor<Expense>())) ?? []
+        let budgets = (try? context.fetch(FetchDescriptor<CategoryBudget>())) ?? []
+        let starting = UserDefaults.standard.double(forKey: SettingsKeys.startingBalance)
+        publish(makeSnapshot(entries: entries, budgets: budgets, startingBalance: starting))
     }
 }

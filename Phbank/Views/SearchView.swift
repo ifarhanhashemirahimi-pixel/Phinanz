@@ -72,5 +72,6 @@ struct SearchView: View {
         } label: {
             EntryRow(entry: entry, showsDate: true)
         }
+        .tint(Color.primary)
     }
 }

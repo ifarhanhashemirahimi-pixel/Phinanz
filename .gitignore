@@ -6,3 +6,4 @@ build/
 .build/
 *.xcodeproj/project.xcworkspace/xcuserdata/
 backup-*/
+snapshots/

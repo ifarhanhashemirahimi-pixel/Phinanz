@@ -2,11 +2,12 @@
 //  PhbankApp.swift
 //  Phbank
 //
-//  PHINANZ — a leather-notebook finance journal for the German market.
+//  PHINANZ — a daily finance journal for the German market.
 //
 
 import SwiftUI
 import SwiftData
+import TipKit
 
 @main
 struct PhbankApp: App {
@@ -17,34 +18,11 @@ struct PhbankApp: App {
     private let container: ModelContainer
 
     init() {
+        container = Persistence.shared
         let uiTesting = AppEnvironment.isUITest
-        let schema = Schema(AppSchema.models)
-
-        func makeContainer(inMemory: Bool) throws -> ModelContainer {
-            let configuration = ModelConfiguration(
-                schema: schema,
-                isStoredInMemoryOnly: inMemory,
-                cloudKitDatabase: .none // sync is not implemented yet
-            )
-            return try ModelContainer(for: schema, configurations: [configuration])
+        if !uiTesting {
+            try? Tips.configure([.displayFrequency(.immediate)])
         }
-
-        let made: ModelContainer
-        do {
-            made = try makeContainer(inMemory: uiTesting)
-        } catch {
-            // Never crash-loop on a broken store; run in memory and keep the files for inspection.
-            print("PHINANZ: could not open the store (\(error)). Falling back to memory.")
-            do {
-                made = try makeContainer(inMemory: true)
-            } catch {
-                fatalError("Could not create any ModelContainer: \(error)")
-            }
-        }
-
-        if uiTesting { SampleData.seed(into: made.mainContext) }
-        container = made
-
         let startLocked = !uiTesting && SettingsKeys.lockEnabledValue && AppLock.canAuthenticate
         _lock = State(initialValue: AppLock(startLocked: startLocked))
     }
@@ -65,6 +43,11 @@ struct PhbankApp: App {
             .task {
                 if lock.isLocked { await lock.unlock() }
             }
+            #if DEBUG
+            .task {
+                await SnapshotRenderer.runIfRequested()
+            }
+            #endif
             .onChange(of: scenePhase) { _, phase in
                 switch phase {
                 case .background:

@@ -38,13 +38,22 @@ struct ContentView: View {
     @AppStorage(SettingsKeys.startingBalance) private var startingBalance = 0.0
     @AppStorage(SettingsKeys.didOnboard) private var didOnboard = false
 
-    @State private var selectedTab: AppTab = .journal
+    @State private var selectedTab: AppTab
     @State private var journalDate = Calendar.current.startOfDay(for: Date())
     @State private var activeSheet: ActiveSheet?
     @State private var importer = ImportController()
     @State private var showOnboarding = false
+    @State private var router = AppRouter.shared
 
     private let calendar = Calendar.current
+    /// Previews and debug screenshots: no onboarding, scheduler or widget updates.
+    private let previewMode: Bool
+
+    init(initialTab: AppTab = .journal, initialDate: Date? = nil, previewMode: Bool = false) {
+        _selectedTab = State(initialValue: initialTab)
+        _journalDate = State(initialValue: Calendar.current.startOfDay(for: initialDate ?? Date()))
+        self.previewMode = previewMode
+    }
 
     var body: some View {
         TabView(selection: $selectedTab) {
@@ -57,10 +66,11 @@ struct ContentView: View {
             Tab("Plan", systemImage: "calendar.badge.clock", value: AppTab.plan) {
                 PlanView(expenses: expenses, activeSheet: $activeSheet)
             }
-            Tab(value: AppTab.search, role: .search) {
+            Tab("Search", systemImage: "magnifyingglass", value: AppTab.search, role: .search) {
                 SearchView(expenses: expenses, activeSheet: $activeSheet)
             }
         }
+        .tabViewStyle(.sidebarAdaptable)
         .tabBarMinimizeBehavior(.onScrollDown)
         .overlay {
             if importer.phase == .processing {
@@ -89,10 +99,12 @@ struct ContentView: View {
             }
         }
         .task {
+            guard !previewMode else { return }
             RecurringScheduler.run(in: context)
             if !didOnboard && !AppEnvironment.isUITest { showOnboarding = true }
         }
         .task(id: widgetKey) {
+            guard !previewMode else { return }
             WidgetBridge.publish(WidgetBridge.makeSnapshot(
                 entries: expenses,
                 budgets: budgets,
@@ -100,7 +112,27 @@ struct ContentView: View {
             ))
         }
         .onChange(of: scenePhase) { _, phase in
-            if phase == .active { RecurringScheduler.run(in: context) }
+            if phase == .active && !previewMode {
+                RecurringScheduler.run(in: context)
+                Task { await NotificationScheduler.refresh(context: context) }
+            }
+        }
+        .onOpenURL { url in
+            router.handle(url)
+        }
+        .onChange(of: router.pendingAction, initial: true) { _, action in
+            guard let action, !previewMode else { return }
+            router.pendingAction = nil
+            let today = calendar.startOfDay(for: Date())
+            switch action {
+            case .newEntry:
+                selectedTab = .journal
+                journalDate = today
+                activeSheet = .add(YearCalendar.entryDate(on: today, calendar: calendar))
+            case .showToday:
+                selectedTab = .journal
+                journalDate = today
+            }
         }
         .fullScreenCover(isPresented: $showOnboarding) {
             OnboardingView {
@@ -162,6 +194,6 @@ struct SettingsToolbarButton: View {
         for: Schema(AppSchema.models),
         configurations: ModelConfiguration(isStoredInMemoryOnly: true, cloudKitDatabase: .none)
     )
-    SampleData.seed(into: container.mainContext)
-    return ContentView().modelContainer(container)
+    SampleData.seedShowcase(into: container.mainContext)
+    return ContentView(previewMode: true).modelContainer(container)
 }

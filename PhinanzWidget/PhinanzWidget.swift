@@ -8,6 +8,11 @@
 import WidgetKit
 import SwiftUI
 
+private enum WidgetLinks {
+    static let add = URL(string: "phinanz://add")
+    static let today = URL(string: "phinanz://today")
+}
+
 private enum WidgetStyle {
     static func amount(_ style: Font.TextStyle, weight: Font.Weight = .semibold) -> Font {
         .system(style, design: .rounded, weight: weight)
@@ -112,6 +117,18 @@ struct SpendingWidgetView: View {
             small(s)
             Divider()
             VStack(alignment: .leading, spacing: 10) {
+                HStack {
+                    Spacer()
+                    if let url = WidgetLinks.add {
+                        Link(destination: url) {
+                            Image(systemName: "plus.circle.fill")
+                                .font(.title2)
+                                .foregroundStyle(.tint)
+                                .widgetAccentable()
+                        }
+                        .accessibilityLabel(Text("Add Entry"))
+                    }
+                }
                 metric("Income", euro(s.monthIncome), systemImage: "arrow.down.circle.fill", color: .green)
                 metric("Balance", euro(s.balance), systemImage: "building.columns.fill", color: .indigo)
                 Spacer(minLength: 0)
@@ -165,6 +182,7 @@ struct SpendingWidget: Widget {
         StaticConfiguration(kind: kind, provider: SnapshotProvider()) { entry in
             SpendingWidgetView(entry: entry)
                 .containerBackground(.background, for: .widget)
+                .widgetURL(WidgetLinks.today)
         }
         .configurationDisplayName("Spending")
         .description("Today's and this month's spending at a glance.")
@@ -176,6 +194,7 @@ struct SpendingWidget: Widget {
 struct PhinanzWidgetBundle: WidgetBundle {
     var body: some Widget {
         SpendingWidget()
+        NewEntryControl()
     }
 }
 

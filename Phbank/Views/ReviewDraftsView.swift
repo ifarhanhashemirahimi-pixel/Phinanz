@@ -34,7 +34,9 @@ struct ReviewDraftsView: View {
                     .font(.footnote)
                 }
                 ForEach($importer.drafts) { $draft in
-                    DraftRow(draft: $draft)
+                    Section {
+                        DraftRow(draft: $draft)
+                    }
                 }
             }
             .navigationTitle("Review entries")
@@ -84,22 +86,25 @@ private struct DraftRow: View {
     @Binding var draft: DraftExpense
 
     var body: some View {
-        VStack(alignment: .leading, spacing: 10) {
+        VStack(alignment: .leading, spacing: 12) {
             Toggle(isOn: $draft.include) {
                 HStack(spacing: 12) {
-                CategoryIcon(category: draft.category, size: 32)
-                VStack(alignment: .leading, spacing: 2) {
-                    Text(draft.store.isEmpty ? String(localized: "Untitled") : draft.store).font(.headline)
-                    Text(draft.amount.map { (draft.isIncome ? "+" : "") + Money.format($0) } ?? String(localized: "Check amount"))
-                        .font(.subheadline)
-                        .foregroundStyle(draft.isIncome ? AnyShapeStyle(Theme.income) : AnyShapeStyle(.secondary))
-                }
+                    CategoryIcon(category: draft.category, size: 36)
+                    VStack(alignment: .leading, spacing: 2) {
+                        Text(draft.amount.map { (draft.isIncome ? "+" : "") + Money.format($0) } ?? String(localized: "Check amount"))
+                            .font(Theme.amount(.title3))
+                            .monospacedDigit()
+                            .foregroundStyle(draft.isIncome ? AnyShapeStyle(Theme.income) : AnyShapeStyle(.primary))
+                        Text(draft.source.title)
+                            .font(.footnote)
+                            .foregroundStyle(.secondary)
+                    }
                 }
             }
 
             if draft.isPossibleDuplicate {
-                Label("Possible duplicate — already in your journal", systemImage: "exclamationmark.triangle")
-                    .font(.caption)
+                Label("Possible duplicate — already in your journal", systemImage: "exclamationmark.triangle.fill")
+                    .font(.footnote)
                     .foregroundStyle(.orange)
             }
 
@@ -109,26 +114,28 @@ private struct DraftRow: View {
                     Text("Income").tag(true)
                 }
                 .pickerStyle(.segmented)
-                TextField("Store or description", text: $draft.store)
-                HStack {
-                    TextField("Amount", text: $draft.amountText)
-                        .keyboardType(.decimalPad)
-                    Text("EUR").foregroundStyle(.secondary)
+
+                LabeledContent("Store") {
+                    TextField("Store or description", text: $draft.store)
+                        .multilineTextAlignment(.trailing)
+                }
+                LabeledContent("Amount") {
+                    HStack(spacing: 4) {
+                        TextField("Amount", text: $draft.amountText)
+                            .keyboardType(.decimalPad)
+                            .multilineTextAlignment(.trailing)
+                        Text(verbatim: "€").foregroundStyle(.secondary)
+                    }
                 }
                 Picker("Category", selection: $draft.category) {
                     ForEach(draft.isIncome ? ExpenseCategory.incomeCases : ExpenseCategory.expenseCases) { item in
-                        Label {
-                            Text(item.title)
-                        } icon: {
-                            CategoryIcon(category: item, size: 28)
-                        }
-                        .tag(item)
+                        Label(item.title, systemImage: item.symbol).tag(item)
                     }
                 }
                 DatePicker("Date", selection: $draft.date)
             }
         }
-        .padding(.vertical, 4)
+        .padding(.vertical, 6)
         .onChange(of: draft.isIncome) { _, income in
             if draft.category.isIncome != income { draft.category = income ? .salary : .other }
         }

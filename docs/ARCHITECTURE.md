@@ -2,7 +2,7 @@
 
 ## Goals
 
-- A calm, notebook-like daily journal for personal spending in Germany.
+- A calm daily journal for personal spending in Germany that looks and behaves like one of Apple's own apps.
 - Local-first: all data stays on the device; the only network call is the optional Gemini import.
 - Small, testable core: parsing, calendar maths, statistics, export and AI handling are plain Swift with no UI dependencies.
 
@@ -57,6 +57,25 @@ All properties have defaults, so SwiftData migrates the original store automatic
 
 The app writes a `WidgetSnapshot` (today, month spending, month income, balance, total budget) as JSON into the App Group `UserDefaults` whenever the numbers change and asks WidgetKit to reload. The widget never opens the database. Values from an earlier day/month are shown as zero until the app updates them.
 
+## System integration
+
+- **Routing:** `AppRouter` (an `@Observable` shared by the app, intents and URL handling) carries "new entry" / "show today" requests. `phinanz://add` and `phinanz://today` are registered in `Info.plist`; widgets, the control and `NewEntryIntent` all end up there.
+- **App Intents:** `AddExpenseIntent` writes directly to SwiftData without opening the app; `TodaySpendingIntent` and `MonthSpendingIntent` answer with dialogs; `PhinanzShortcuts` registers phrases in three languages (`AppShortcuts.xcstrings`).
+- **Control:** `NewEntryControl` (widget extension) uses an `OpenURLIntent` with `phinanz://add`.
+- **Persistence:** `Persistence.shared` is the single `ModelContainer` used by the app and intents; UI tests get an in-memory store with sample data.
+
+## Backup
+
+`BackupService` writes a versioned JSON file (`BackupFile`, version 1) with all entries, budgets and recurring payments. Restore checks the version and sanitises every row (amount limits, text length, known categories), then replaces all current data with the backup's content in one save. The UI asks for confirmation first and reports how many entries, budgets and payments were restored.
+
+## Reminders
+
+`NotificationScheduler` keeps local notifications in sync with the data: an optional daily reminder at a chosen time, and for every active recurring payment a notice at 18:00 the evening before it is booked, for the next 60 days (iOS allows 64 pending requests). It reschedules whenever the app becomes active or a payment changes.
+
+## Category suggestions
+
+`CategorySuggester` looks at the store name while you type. Your own history wins (the category you used most for that store); otherwise a keyword list of common German merchants decides. A category the user picked by hand is never overwritten.
+
 ## Localization
 
 String Catalogs (`Localizable.xcstrings`, `InfoPlist.xcstrings`, and one in the widget) with English as source and German and Persian translations. Model-level strings use `String(localized:)`; views use `LocalizedStringKey` literals. Persian runs right-to-left automatically; chevrons use `backward`/`forward` symbols so they mirror. `Money.parse` accepts Persian and Arabic-Indic digits.
@@ -77,6 +96,6 @@ String Catalogs (`Localizable.xcstrings`, `InfoPlist.xcstrings`, and one in the 
 ## Extending
 
 - **Sync**: add an iCloud container, switch `cloudKitDatabase` to `.automatic`, test with two devices.
-- **Recurring entries**: add a `Recurrence` model and materialise entries on app start.
-- **Budgets**: category budgets compared against `ExpenseStats.byCategory`.
+- **Bank CSV import**: parse bank exports into `DraftExpense` and reuse the review screen and duplicate detection.
+- **Multiple currencies**: add a currency code to `Expense` and convert in `ExpenseStats`.
 - **Decimal money**: replace `Double` with `Decimal` in `Expense`, `Money` and `ExpenseStats`.

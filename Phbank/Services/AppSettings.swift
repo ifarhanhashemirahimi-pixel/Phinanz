@@ -13,6 +13,9 @@ enum SettingsKeys {
     static let apiKeyAccount = "geminiAPIKey"
     static let startingBalance = "startingBalance"
     static let didOnboard = "didOnboard"
+    static let dailyReminder = "dailyReminder"
+    static let dailyReminderMinutes = "dailyReminderMinutes"
+    static let paymentReminders = "paymentReminders"
 
     /// Face ID / passcode lock; offered during onboarding, off until the user turns it on.
     static var lockEnabledValue: Bool {

@@ -229,6 +229,7 @@ struct RecurringEditorView: View {
         }
         try? context.save()
         RecurringScheduler.run(in: context)
+        Task { await NotificationScheduler.refresh(context: context) }
         dismiss()
     }
 

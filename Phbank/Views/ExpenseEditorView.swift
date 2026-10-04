@@ -25,6 +25,8 @@ struct ExpenseEditorView: View {
     @State private var confirmDelete = false
     @State private var budgetMessage: String?
     @State private var savedCount = 0
+    /// Once the user picks a category we stop suggesting one.
+    @State private var categoryTouched = false
     @FocusState private var amountFocused: Bool
 
     init(expense: Expense?, defaultDate: Date) {
@@ -66,17 +68,17 @@ struct ExpenseEditorView: View {
 
                         HStack(alignment: .firstTextBaseline, spacing: 6) {
                             TextField("0", text: $amountText)
-                                .font(Theme.amount(.largeTitle, weight: .bold))
+                                .font(.system(size: 52, weight: .bold, design: .rounded))
                                 .monospacedDigit()
                                 .multilineTextAlignment(.center)
                                 .keyboardType(.decimalPad)
                                 .focused($amountFocused)
-                                .minimumScaleFactor(0.5)
-                                .fixedSize()
+                                .frame(minWidth: 72)
+                                .fixedSize(horizontal: true, vertical: false)
                                 .accessibilityLabel(Text("Amount"))
                                 .accessibilityIdentifier("field-amount")
                             Text(verbatim: "€")
-                                .font(Theme.amount(.title, weight: .semibold))
+                                .font(.system(size: 34, weight: .semibold, design: .rounded))
                                 .foregroundStyle(.secondary)
                         }
                         .foregroundStyle(isIncome ? Theme.income : Color.primary)
@@ -99,7 +101,7 @@ struct ExpenseEditorView: View {
                         .textInputAutocapitalization(.words)
                         .accessibilityIdentifier("field-store")
 
-                    Picker(selection: $category) {
+                    Picker(selection: categoryBinding) {
                         ForEach(categories) { item in
                             Label {
                                 Text(item.title)
@@ -154,6 +156,13 @@ struct ExpenseEditorView: View {
                     category = income ? .salary : .other
                 }
             }
+            .onChange(of: store) { _, newValue in
+                guard expense == nil, !categoryTouched,
+                      let suggestion = CategorySuggester.suggest(for: newValue, history: allEntries),
+                      suggestion.isIncome == isIncome
+                else { return }
+                withAnimation(.snappy) { category = suggestion }
+            }
             .confirmationDialog("Delete this entry?", isPresented: $confirmDelete, titleVisibility: .visible) {
                 Button("Delete", role: .destructive, action: delete)
                 Button("Cancel", role: .cancel) {}
@@ -165,6 +174,16 @@ struct ExpenseEditorView: View {
             }
             .sensoryFeedback(.success, trigger: savedCount)
         }
+    }
+
+    private var categoryBinding: Binding<ExpenseCategory> {
+        Binding(
+            get: { category },
+            set: { newValue in
+                category = newValue
+                categoryTouched = true
+            }
+        )
     }
 
     private var budgetAlertBinding: Binding<Bool> {

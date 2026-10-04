@@ -9,6 +9,7 @@
 import SwiftUI
 import SwiftData
 import UIKit
+import UniformTypeIdentifiers
 
 struct SettingsView: View {
     @Environment(\.dismiss) private var dismiss
@@ -21,6 +22,15 @@ struct SettingsView: View {
     @AppStorage(SettingsKeys.aiConsent) private var aiConsent = false
     @AppStorage(SettingsKeys.geminiModel) private var model = GeminiService.defaultModel
     @AppStorage(SettingsKeys.startingBalance) private var startingBalance = 0.0
+    @AppStorage(SettingsKeys.dailyReminder) private var dailyReminder = false
+    @AppStorage(SettingsKeys.dailyReminderMinutes) private var dailyReminderMinutes = 20 * 60
+    @AppStorage(SettingsKeys.paymentReminders) private var paymentReminders = false
+
+    @State private var notificationsDenied = false
+    @State private var backupURL: URL?
+    @State private var showRestorePicker = false
+    @State private var pendingRestore: BackupFile?
+    @State private var backupMessage: String?
 
     @State private var balanceText = ""
     @FocusState private var balanceFocused: Bool
@@ -64,8 +74,10 @@ struct SettingsView: View {
             Form {
                 generalSection
                 securitySection
+                remindersSection
                 aiSection
                 exportSection
+                backupSection
                 dataSection
 
                 Section {
@@ -84,6 +96,21 @@ struct SettingsView: View {
             .onAppear { balanceText = startingBalance == 0 ? "" : Money.input(startingBalance) }
             .onChange(of: balanceFocused) { _, focused in if !focused { saveBalance() } }
             .onDisappear(perform: saveBalance)
+            .fileImporter(isPresented: $showRestorePicker, allowedContentTypes: [.json]) { result in
+                loadBackup(result)
+            }
+            .confirmationDialog(
+                "Replace your journal with this backup?",
+                isPresented: restoreDialogBinding,
+                titleVisibility: .visible
+            ) {
+                Button("Restore", role: .destructive, action: performRestore)
+                Button("Cancel", role: .cancel) { pendingRestore = nil }
+            } message: {
+                if let pendingRestore {
+                    Text("The backup from \(pendingRestore.exportedAt.formatted(date: .abbreviated, time: .shortened)) contains \(pendingRestore.entries.count) entries. Your current entries will be replaced.")
+                }
+            }
             .confirmationDialog(
                 "Delete all \(expenses.count) entries?",
                 isPresented: $confirmWipe,
@@ -146,6 +173,57 @@ struct SettingsView: View {
             } else {
                 Text("Set a device passcode in the iOS Settings app to use the lock.")
             }
+        }
+    }
+
+    private var remindersSection: some View {
+        Section {
+            Toggle(isOn: reminderBinding($dailyReminder)) {
+                SettingsLabel(title: "Daily Reminder", systemName: "bell.badge.fill", color: .red)
+            }
+            if dailyReminder {
+                DatePicker("Time", selection: reminderTimeBinding, displayedComponents: .hourAndMinute)
+            }
+            Toggle(isOn: reminderBinding($paymentReminders)) {
+                SettingsLabel(title: "Payment Reminders", systemName: "calendar.badge.clock", color: .orange)
+            }
+        } header: {
+            Text("Reminders")
+        } footer: {
+            if notificationsDenied {
+                Text("Notifications are turned off for PHINANZ. Turn them on in the iOS Settings app.")
+            } else {
+                Text("A short reminder in the evening to write down your spending, and a note the day before rent, subscriptions or salary.")
+            }
+        }
+    }
+
+    private var backupSection: some View {
+        Section {
+            Button(action: prepareBackup) {
+                SettingsLabel(title: "Back Up Journal", systemName: "externaldrive.fill", color: .blue)
+            }
+            .foregroundStyle(.primary)
+            if let backupURL {
+                ShareLink(item: backupURL) {
+                    SettingsLabel(title: "Save Backup File", systemName: "square.and.arrow.up", color: .blue)
+                }
+            }
+            Button {
+                showRestorePicker = true
+            } label: {
+                SettingsLabel(title: "Restore from Backup", systemName: "arrow.counterclockwise", color: .teal)
+            }
+            .foregroundStyle(.primary)
+            if let backupMessage {
+                Text(backupMessage)
+                    .font(.footnote)
+                    .foregroundStyle(.secondary)
+            }
+        } header: {
+            Text("Backup")
+        } footer: {
+            Text("Keep the backup file in iCloud Drive or the Files app. Restoring replaces everything in your journal.")
         }
     }
 
@@ -232,6 +310,89 @@ struct SettingsView: View {
     }
 
     // MARK: Actions
+
+    private func reminderBinding(_ setting: Binding<Bool>) -> Binding<Bool> {
+        Binding(
+            get: { setting.wrappedValue },
+            set: { newValue in
+                Task {
+                    if newValue {
+                        let allowed = await NotificationScheduler.requestAuthorization()
+                        notificationsDenied = !allowed
+                        setting.wrappedValue = allowed
+                    } else {
+                        setting.wrappedValue = false
+                    }
+                    await NotificationScheduler.refresh(context: context)
+                }
+            }
+        )
+    }
+
+    private var reminderTimeBinding: Binding<Date> {
+        Binding(
+            get: {
+                Calendar.current.date(
+                    bySettingHour: dailyReminderMinutes / 60,
+                    minute: dailyReminderMinutes % 60,
+                    second: 0,
+                    of: Date()
+                ) ?? Date()
+            },
+            set: { newValue in
+                let parts = Calendar.current.dateComponents([.hour, .minute], from: newValue)
+                dailyReminderMinutes = (parts.hour ?? 20) * 60 + (parts.minute ?? 0)
+                Task { await NotificationScheduler.refresh(context: context) }
+            }
+        )
+    }
+
+    private var restoreDialogBinding: Binding<Bool> {
+        Binding(
+            get: { pendingRestore != nil },
+            set: { if !$0 { pendingRestore = nil } }
+        )
+    }
+
+    private func prepareBackup() {
+        do {
+            backupURL = try BackupService.writeBackup(from: context, startingBalance: startingBalance)
+            backupMessage = nil
+        } catch {
+            backupURL = nil
+            backupMessage = String(localized: "Backup failed: \(error.localizedDescription)")
+        }
+    }
+
+    private func loadBackup(_ result: Result<URL, Error>) {
+        switch result {
+        case .success(let url):
+            let scoped = url.startAccessingSecurityScopedResource()
+            defer { if scoped { url.stopAccessingSecurityScopedResource() } }
+            do {
+                let data = try Data(contentsOf: url)
+                pendingRestore = try BackupService.decode(data)
+            } catch {
+                backupMessage = error.localizedDescription
+            }
+        case .failure(let error):
+            backupMessage = error.localizedDescription
+        }
+    }
+
+    private func performRestore() {
+        guard let backup = pendingRestore else { return }
+        pendingRestore = nil
+        do {
+            let summary = try BackupService.restore(backup, into: context)
+            balanceText = startingBalance == 0 ? "" : Money.input(startingBalance)
+            backupMessage = String(localized: "Restored \(summary.entries) entries, \(summary.budgets) budgets and \(summary.recurring) recurring payments.")
+            WidgetBridge.refresh(from: context)
+            Task { await NotificationScheduler.refresh(context: context) }
+        } catch {
+            backupMessage = String(localized: "Restore failed: \(error.localizedDescription)")
+        }
+    }
 
     private func saveBalance() {
         let trimmed = balanceText.trimmingCharacters(in: .whitespacesAndNewlines)

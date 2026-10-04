@@ -8,6 +8,7 @@
 
 import SwiftUI
 import SwiftData
+import TipKit
 
 struct JournalView: View {
     let expenses: [Expense]
@@ -42,6 +43,10 @@ struct JournalView: View {
                 .padding(.bottom, 6)
 
                 Divider()
+
+                TipView(SwipeDaysTip())
+                    .padding(.horizontal)
+                    .padding(.top, 8)
 
                 pager(days: days, grouped: grouped)
             }
@@ -84,6 +89,7 @@ struct JournalView: View {
                     } label: {
                         Label("Import with AI", systemImage: "sparkles")
                     }
+                    .popoverTip(AIImportTip())
                     .accessibilityIdentifier("toolbar-ai")
                 }
                 ToolbarItem(placement: .topBarTrailing) {
@@ -150,6 +156,8 @@ struct JournalView: View {
         .scrollTargetBehavior(.paging)
         .scrollIndicators(.hidden)
         .scrollPosition(id: $pageIndex)
+        // Pages fill the screen; a keyboard in a sheet must not squeeze them.
+        .ignoresSafeArea(.keyboard)
     }
 
     private func syncPager(to date: Date, animated: Bool) {
@@ -250,16 +258,12 @@ struct DayPageView: View {
 
     var body: some View {
         List {
-            Section {
-                DaySummaryHeader(date: date, entries: entries)
-            }
-
             if entries.isEmpty {
                 Section {
                     ContentUnavailableView {
                         Label("No Entries", systemImage: "tray")
                     } description: {
-                        Text("Nothing written down for this day yet.")
+                        Text("Nothing written down for \(DaySummaryHeader.title(for: date)) yet.")
                     } actions: {
                         Button("Add Entry", action: onAdd)
                             .buttonStyle(.borderedProminent)
@@ -268,6 +272,10 @@ struct DayPageView: View {
                 }
                 .listRowBackground(Color.clear)
             } else {
+                Section {
+                    DaySummaryHeader(date: date, entries: entries)
+                }
+
                 Section("Entries") {
                     ForEach(entries) { entry in
                         Button {
@@ -275,6 +283,7 @@ struct DayPageView: View {
                         } label: {
                             EntryRow(entry: entry)
                         }
+                        .tint(Color.primary)
                         .swipeActions(edge: .trailing, allowsFullSwipe: true) {
                             Button(role: .destructive) {
                                 delete(entry)
@@ -319,7 +328,9 @@ struct DaySummaryHeader: View {
     private var earned: Double { ExpenseStats.income(entries) }
     private var categories: [CategoryTotal] { ExpenseStats.byCategory(entries) }
 
-    private var dayTitle: String {
+    private var dayTitle: String { Self.title(for: date) }
+
+    static func title(for date: Date, calendar: Calendar = .current) -> String {
         let formatted = date.formatted(.dateTime.weekday(.wide).day().month(.wide))
         if calendar.isDateInToday(date) { return String(localized: "Today · \(formatted)") }
         if calendar.isDateInYesterday(date) { return String(localized: "Yesterday · \(formatted)") }
@@ -382,7 +393,7 @@ struct EntryRow: View {
 
     private var subtitle: String {
         let time = showsDate
-            ? entry.date.formatted(date: .abbreviated, time: .shortened)
+            ? entry.date.formatted(.dateTime.day().month(.abbreviated))
             : entry.date.formatted(date: .omitted, time: .shortened)
         return "\(entry.category.title) · \(time)"
     }
@@ -393,7 +404,7 @@ struct EntryRow: View {
             VStack(alignment: .leading, spacing: 2) {
                 Text(entry.store)
                     .font(.body)
-                    .foregroundStyle(.primary)
+                    .foregroundStyle(Color.primary)
                     .lineLimit(1)
                 HStack(spacing: 4) {
                     if entry.source == .recurring {
@@ -403,7 +414,7 @@ struct EntryRow: View {
                     Text(subtitle)
                 }
                 .font(.subheadline)
-                .foregroundStyle(.secondary)
+                .foregroundStyle(Color.secondary)
                 .lineLimit(1)
             }
             Spacer(minLength: 8)

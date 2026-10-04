@@ -495,3 +495,126 @@ struct WidgetSnapshotTests {
         #expect(snapshot.budgetLimit == 200)
     }
 }
+
+// MARK: - Backup
+
+@MainActor
+struct BackupTests {
+    @Test func roundTripRestoresEverything() throws {
+        let container = try makeContainer()
+        let context = container.mainContext
+        context.insert(Expense(store: "REWE", amount: 23.5, category: .groceries, date: utcDate(2026, 10, 3, 18), note: "Wocheneinkauf"))
+        context.insert(Expense(store: "Gehalt", amount: 2450, category: .salary, date: utcDate(2026, 10, 1, 9), source: .recurring, isIncome: true))
+        context.insert(CategoryBudget(category: .groceries, monthlyLimit: 250))
+        let rent = RecurringPayment(name: "Miete", amount: 720, category: .housing, dayOfMonth: 1, startDate: utcDate(2026, 1, 1))
+        rent.lastGenerated = utcDate(2026, 10, 1, 9)
+        context.insert(rent)
+        try context.save()
+
+        let backup = BackupService.makeBackup(
+            entries: try context.fetch(FetchDescriptor<Expense>()),
+            budgets: try context.fetch(FetchDescriptor<CategoryBudget>()),
+            recurring: try context.fetch(FetchDescriptor<RecurringPayment>()),
+            startingBalance: 150,
+            now: utcDate(2026, 10, 5)
+        )
+        let data = try BackupService.encode(backup)
+        let decoded = try BackupService.decode(data)
+        #expect(decoded == backup)
+
+        let other = try makeContainer()
+        let summary = try BackupService.restore(decoded, into: other.mainContext)
+        #expect(summary == RestoreSummary(entries: 2, budgets: 1, recurring: 1))
+        let restored = try other.mainContext.fetch(FetchDescriptor<Expense>())
+        #expect(restored.count == 2)
+        #expect(restored.contains { $0.store == "Gehalt" && $0.isIncome && $0.source == .recurring })
+        let payments = try other.mainContext.fetch(FetchDescriptor<RecurringPayment>())
+        #expect(payments.first?.lastGenerated == utcDate(2026, 10, 1, 9))
+    }
+
+    @Test func rejectsForeignFiles() {
+        #expect(throws: BackupError.notABackup) { try BackupService.decode(Data("{\"hello\":1}".utf8)) }
+        #expect(throws: BackupError.notABackup) { try BackupService.decode(Data("not json".utf8)) }
+    }
+
+    @Test func rejectsNewerVersions() throws {
+        var backup = BackupFile(exportedAt: utcDate(2026, 10, 5), startingBalance: 0, entries: [], budgets: [], recurring: [])
+        backup.version = BackupFile.currentVersion + 1
+        let data = try BackupService.encode(backup)
+        #expect(throws: BackupError.newerVersion) { try BackupService.decode(data) }
+    }
+
+    @Test func restoreSkipsInvalidAmounts() throws {
+        let container = try makeContainer()
+        let backup = BackupFile(
+            exportedAt: utcDate(2026, 10, 5),
+            startingBalance: 0,
+            entries: [
+                .init(store: "ok", amount: 5, category: "food", date: utcDate(2026, 10, 1), note: "", source: "manual", isIncome: false),
+                .init(store: "bad", amount: -5, category: "food", date: utcDate(2026, 10, 1), note: "", source: "manual", isIncome: false)
+            ],
+            budgets: [],
+            recurring: []
+        )
+        let summary = try BackupService.restore(backup, into: container.mainContext)
+        #expect(summary.entries == 1)
+    }
+}
+
+// MARK: - Reminders & deep links
+
+@MainActor
+struct ReminderTests {
+    @Test func remindsAtSixTheEveningBefore() {
+        let dates = NotificationScheduler.reminderDates(start: utcDate(2026, 1, 1), dayOfMonth: 15, now: utcDate(2026, 10, 5, 12), calendar: utc)
+        #expect(dates.first == utcDate(2026, 10, 14, 18))
+        #expect(dates.count == 2)
+    }
+
+    @Test func noReminderForTheDayThatAlreadyPassed() {
+        let dates = NotificationScheduler.reminderDates(start: utcDate(2026, 1, 1), dayOfMonth: 6, now: utcDate(2026, 10, 5, 19), calendar: utc)
+        #expect(dates.first == utcDate(2026, 11, 5, 18))
+    }
+
+    @Test func deepLinks() {
+        let router = AppRouter()
+        #expect(router.handle(URL(string: "phinanz://add")!))
+        #expect(router.pendingAction == .newEntry)
+        #expect(router.handle(URL(string: "phinanz://today")!))
+        #expect(router.pendingAction == .showToday)
+        #expect(!router.handle(URL(string: "https://example.com")!))
+        #expect(!router.handle(URL(string: "phinanz://unknown")!))
+    }
+}
+
+// MARK: - Category suggestions
+
+@MainActor
+struct CategorySuggesterTests {
+    @Test(arguments: [
+        ("REWE City", ExpenseCategory.groceries), ("Lidl", .groceries), ("Bäckerei Schmidt", .food),
+        ("RMV Monatskarte", .transport), ("DB Fernverkehr", .transport), ("Netflix", .entertainment),
+        ("dm-drogerie markt", .health), ("Amazon.de", .shopping), ("Apple iCloud+", .software),
+        ("Lufthansa", .travel), ("Gehalt Oktober", .salary)
+    ])
+    func knowsCommonGermanMerchants(store: String, expected: ExpenseCategory) {
+        #expect(CategorySuggester.suggest(for: store) == expected)
+    }
+
+    @Test func unknownStoresGetNoSuggestion() {
+        #expect(CategorySuggester.suggest(for: "Blumen Meier") == nil)
+        #expect(CategorySuggester.suggest(for: "x") == nil)
+    }
+
+    @Test func yourHistoryWins() throws {
+        let container = try makeContainer()
+        _ = container
+        let history = [
+            Expense(store: "REWE", amount: 5, category: .food, date: utcDate(2026, 10, 1)),
+            Expense(store: "Blumen Meier", amount: 12, category: .shopping, date: utcDate(2026, 9, 1)),
+            Expense(store: "Blumen Meier", amount: 12, category: .other, date: utcDate(2026, 10, 2))
+        ]
+        #expect(CategorySuggester.suggest(for: "rewe", history: history) == .food)
+        #expect(CategorySuggester.suggest(for: "Blumen Meier", history: history) == .other)
+    }
+}

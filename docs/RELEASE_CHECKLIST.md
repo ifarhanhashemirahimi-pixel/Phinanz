@@ -16,7 +16,8 @@
 ## Privacy and App Store
 - [ ] Privacy policy URL (required): states that data stays on device and what is sent to Google Gemini when AI import is used
 - [ ] App Privacy "nutrition label": financial info and audio/photos are collected only if the user enables AI import, and are sent to a third party (Google)
-- [ ] Permission texts reviewed (camera, microphone, Face ID)
+- [ ] Permission texts reviewed (camera, microphone, Face ID, notifications)
+- [ ] Siri phrases, widgets and the Control Center control checked in all three languages
 - [ ] Export compliance: uses only standard OS encryption (HTTPS, Keychain)
 - [ ] Screenshots (6.9" and 6.5" iPhone), description, keywords (German + English)
 - [ ] Age rating questionnaire, support URL, contact e-mail
@@ -25,6 +26,7 @@
 - [ ] Archive, validate, upload
 - [ ] Internal testers: fresh install, create entries, kill and relaunch, data still there
 - [ ] Update install over previous build keeps data (SwiftData migration)
+- [ ] A backup made with the previous build restores in the new one
 
 ## Rollback triggers
 - Crash on launch or a store that cannot be opened
