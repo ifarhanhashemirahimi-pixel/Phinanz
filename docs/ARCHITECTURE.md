@@ -39,7 +39,32 @@ Default actor isolation of the target is `MainActor`, so everything above runs o
 
 ## Data model
 
-`Expense`: `store`, `amount` (EUR, positive), `categoryRaw`, `date`, `note`, `sourceRaw`. All properties have defaults so a later CloudKit migration stays possible. Categories: groceries, food, transport, housing, entertainment, health, shopping, software, travel, other.
+- `Expense`: `store`, `amount` (EUR, always positive), `isIncome`, `categoryRaw`, `date`, `note`, `sourceRaw` (manual, voice, receipt, statement, recurring). Spending categories: groceries, food, transport, housing, entertainment, health, shopping, software, travel, other. Income categories: salary, freelance (side income), refund, otherIncome.
+- `CategoryBudget`: `categoryRaw`, `monthlyLimit`.
+- `RecurringPayment`: `name`, `amount`, `isIncome`, `categoryRaw`, `dayOfMonth` (1–31, clamped), `startDate`, `lastGenerated`, `isActive`, `note`.
+
+All properties have defaults, so SwiftData migrates the original store automatically (new columns, new tables) and a later CloudKit migration stays possible.
+
+## Recurring payments
+
+`RecurringScheduler.run` executes on launch and whenever the app becomes active. For every active payment it computes the due dates after `lastGenerated` (09:00 on the day of month, clamped to the month's length), creates entries with `source = .recurring`, and stores the last date. It is idempotent and caps catch-up at 24 months. Deleting a generated entry does not bring it back.
+
+## Budgets
+
+`BudgetCalculator` turns budgets plus the month's spending into statuses (`ok`, `warning` at ≥ 80 %, `over`). The entry editor checks whether a save *crosses* a threshold and shows one alert; it does not nag on every later entry.
+
+## Widget
+
+The app writes a `WidgetSnapshot` (today, month spending, month income, balance, total budget) as JSON into the App Group `UserDefaults` whenever the numbers change and asks WidgetKit to reload. The widget never opens the database. Values from an earlier day/month are shown as zero until the app updates them.
+
+## Localization
+
+String Catalogs (`Localizable.xcstrings`, `InfoPlist.xcstrings`, and one in the widget) with English as source and German and Persian translations. Model-level strings use `String(localized:)`; views use `LocalizedStringKey` literals. Persian runs right-to-left automatically; chevrons use `backward`/`forward` symbols so they mirror. `Money.parse` accepts Persian and Arabic-Indic digits.
+
+## Bank connection (planned)
+
+1. CSV import for the common German bank exports (Sparkasse, ING, DKB, N26, Commerzbank, Volksbank) — no server needed.
+2. PSD2 account information via a licensed aggregator (for personal use e.g. Enable Banking's restricted mode). Needs a small backend that holds the aggregator's private key; the app only talks to that backend. Publishing to other users requires a BaFin licence or a contract with a licensed provider.
 
 ## Security and privacy notes
 

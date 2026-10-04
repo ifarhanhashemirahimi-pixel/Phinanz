@@ -13,6 +13,10 @@ Most risk sits in pure logic (money parsing, date handling, AI output) and in a 
 | Gemini request/response | Unit | `GeminiServiceTests` | Key only in header, model validation, fences, bad rows dropped |
 | Draft conversion + duplicates | Unit | `DraftExpenseTests` | Date/time fallback rules, validation |
 | Image downscaling | Unit | `ImageEncodingTests` | Max dimension respected |
+| Income, net, balance | Unit | `IncomeTests` | Spending/income separation, balance cut-off date, AI income type |
+| Budgets | Unit | `BudgetTests` | Levels, threshold crossing, month filter |
+| Recurring payments | Unit | `RecurringTests` | Clamping, catch-up, start date, cap, idempotent run |
+| Widget snapshot | Unit | `WidgetSnapshotTests` | Today / month / balance numbers |
 | Launch, tab bar, settings, add entry | UI | `PhbankUITests` | Critical happy paths |
 | Camera, microphone, Face ID, real Gemini call | Manual | below | Hardware or secrets required |
 
@@ -26,7 +30,10 @@ Coverage goal: 90 %+ of `Services/` and `Models/`, UI covered by flows rather th
 4. **Gemini end-to-end** (with your own key): voice note in German and English, a receipt photo, a bank-statement PDF with several debits. Check amounts, dates, categories. Re-import the same statement → rows flagged as duplicates and unchecked.
 5. **Failure modes**: airplane mode, wrong API key (HTTP 400/403), model name typo, 20 MB PDF.
 6. **Accessibility**: VoiceOver reads each entry as "store, amount, category, time"; Dynamic Type at the largest sizes; Reduce Motion stops the loader.
-7. **Export**: share the CSV to Files and open it in Numbers/Excel (German locale): columns split, decimals correct, umlauts intact.
+7. **Languages**: switch the iPhone to Deutsch and فارسی; check every screen for untranslated text, clipped labels and right-to-left layout.
+8. **Widget**: add small, medium and Lock Screen widgets; add an entry in the app and check the widget updates; check it shows zero for "today" after midnight.
+9. **Recurring**: create a payment with a start date three months ago and check exactly three entries appear; reopen the app → no duplicates.
+10. **Export**: share the CSV to Files and open it in Numbers/Excel (German locale): columns split, decimals correct, umlauts intact.
 
 ## Example edge cases worth keeping in mind
 
