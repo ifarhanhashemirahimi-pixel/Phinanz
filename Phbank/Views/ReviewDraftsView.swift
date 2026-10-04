@@ -26,8 +26,12 @@ struct ReviewDraftsView: View {
         NavigationStack {
             List {
                 Section {
-                    Label("AI can make mistakes. Check every entry before saving.", systemImage: "sparkles")
-                        .font(.footnote)
+                    Label {
+                        Text("AI can make mistakes. Check every entry before saving.")
+                    } icon: {
+                        Image(systemName: "sparkles").foregroundStyle(.purple)
+                    }
+                    .font(.footnote)
                 }
                 ForEach($importer.drafts) { $draft in
                     DraftRow(draft: $draft)
@@ -50,7 +54,6 @@ struct ReviewDraftsView: View {
             }
             .onAppear(perform: markDuplicates)
         }
-        .tint(JournalTheme.gold)
         .interactiveDismissDisabled()
     }
 
@@ -83,11 +86,14 @@ private struct DraftRow: View {
     var body: some View {
         VStack(alignment: .leading, spacing: 10) {
             Toggle(isOn: $draft.include) {
+                HStack(spacing: 12) {
+                CategoryIcon(category: draft.category, size: 32)
                 VStack(alignment: .leading, spacing: 2) {
                     Text(draft.store.isEmpty ? String(localized: "Untitled") : draft.store).font(.headline)
                     Text(draft.amount.map { (draft.isIncome ? "+" : "") + Money.format($0) } ?? String(localized: "Check amount"))
                         .font(.subheadline)
-                        .foregroundStyle(draft.isIncome ? AnyShapeStyle(JournalTheme.incomeLight) : AnyShapeStyle(.secondary))
+                        .foregroundStyle(draft.isIncome ? AnyShapeStyle(Theme.income) : AnyShapeStyle(.secondary))
+                }
                 }
             }
 
@@ -111,7 +117,12 @@ private struct DraftRow: View {
                 }
                 Picker("Category", selection: $draft.category) {
                     ForEach(draft.isIncome ? ExpenseCategory.incomeCases : ExpenseCategory.expenseCases) { item in
-                        Label(item.title, systemImage: item.symbol).tag(item)
+                        Label {
+                            Text(item.title)
+                        } icon: {
+                            CategoryIcon(category: item, size: 28)
+                        }
+                        .tag(item)
                     }
                 }
                 DatePicker("Date", selection: $draft.date)

@@ -2,87 +2,75 @@
 //  SearchView.swift
 //  Phbank
 //
+//  The search tab: recent entries, and results as you type.
+//
 
 import SwiftUI
 
 struct SearchView: View {
-    @Environment(\.dismiss) private var dismiss
-
     let expenses: [Expense]
-    var onSelect: (Date) -> Void
+    @Binding var activeSheet: ActiveSheet?
 
-    @State private var searchText = ""
-    @State private var jumpDate = Date()
+    @State private var query = ""
+
+    private var trimmedQuery: String { query.trimmingCharacters(in: .whitespacesAndNewlines) }
 
     private var results: [Expense] {
-        let query = searchText.trimmingCharacters(in: .whitespacesAndNewlines)
-        guard !query.isEmpty else { return [] }
-        let amountQuery = query.replacingOccurrences(of: ",", with: ".")
-
+        let text = trimmedQuery
+        guard !text.isEmpty else { return [] }
+        let amountQuery = Money.normalizeDigits(text).replacingOccurrences(of: ",", with: ".")
         return expenses
-            .filter { expense in
-                expense.store.localizedCaseInsensitiveContains(query)
-                    || expense.category.title.localizedCaseInsensitiveContains(query)
-                    || expense.note.localizedCaseInsensitiveContains(query)
-                    || Money.plain(expense.amount).contains(amountQuery)
-                    || expense.date.formatted(.dateTime.month(.wide).day()).localizedCaseInsensitiveContains(query)
+            .filter { entry in
+                entry.store.localizedCaseInsensitiveContains(text)
+                    || entry.category.title.localizedCaseInsensitiveContains(text)
+                    || entry.note.localizedCaseInsensitiveContains(text)
+                    || Money.plain(entry.amount).contains(amountQuery)
+                    || entry.date.formatted(.dateTime.month(.wide)).localizedCaseInsensitiveContains(text)
             }
             .sorted { $0.date > $1.date }
             .prefix(100)
             .map { $0 }
     }
 
+    private var recent: [Expense] {
+        Array(expenses.sorted { $0.date > $1.date }.prefix(20))
+    }
+
     var body: some View {
         NavigationStack {
             List {
-                Section("Go to date") {
-                    DatePicker("Date", selection: $jumpDate, displayedComponents: .date)
-                    Button("Open this page") {
-                        onSelect(jumpDate)
-                        dismiss()
-                    }
-                }
-
-                if !searchText.isEmpty {
-                    Section("Entries") {
-                        if results.isEmpty {
-                            ContentUnavailableView.search(text: searchText)
-                        }
-                        ForEach(results) { expense in
-                            Button {
-                                onSelect(expense.date)
-                                dismiss()
-                            } label: {
-                                HStack {
-                                    Image(systemName: expense.category.symbol)
-                                        .foregroundStyle(expense.category.color)
-                                        .frame(width: 28)
-                                        .accessibilityHidden(true)
-                                    VStack(alignment: .leading, spacing: 2) {
-                                        Text(expense.store).font(.headline)
-                                        Text(expense.date.formatted(date: .abbreviated, time: .omitted))
-                                            .font(.subheadline)
-                                            .foregroundStyle(.secondary)
-                                    }
-                                    Spacer()
-                                    Text(verbatim: (expense.isIncome ? "+" : "") + Money.format(expense.amount))
-                                        .foregroundStyle(expense.isIncome ? JournalTheme.incomeLight : Color.primary)
-                                }
-                                .foregroundStyle(.primary)
-                            }
+                if trimmedQuery.isEmpty {
+                    if !recent.isEmpty {
+                        Section("Recent") {
+                            ForEach(recent) { row($0) }
                         }
                     }
+                } else {
+                    ForEach(results) { row($0) }
                 }
             }
-            .searchable(text: $searchText, placement: .navigationBarDrawer(displayMode: .always), prompt: "Store, category, amount or month")
+            .listStyle(.insetGrouped)
+            .overlay {
+                if !trimmedQuery.isEmpty && results.isEmpty {
+                    ContentUnavailableView.search(text: trimmedQuery)
+                } else if trimmedQuery.isEmpty && expenses.isEmpty {
+                    ContentUnavailableView(
+                        "Search Your Journal",
+                        systemImage: "magnifyingglass",
+                        description: Text("Find entries by store, category, note, amount or month.")
+                    )
+                }
+            }
             .navigationTitle("Search")
-            .navigationBarTitleDisplayMode(.inline)
-            .toolbar {
-                ToolbarItem(placement: .confirmationAction) {
-                    Button("Done") { dismiss() }
-                }
-            }
+            .searchable(text: $query, prompt: Text("Stores, categories, amounts"))
         }
-        .tint(JournalTheme.gold)
+    }
+
+    private func row(_ entry: Expense) -> some View {
+        Button {
+            activeSheet = .edit(entry)
+        } label: {
+            EntryRow(entry: entry, showsDate: true)
+        }
     }
 }

@@ -2,21 +2,10 @@
 //  VoiceInputView.swift
 //  Phbank
 //
+//  Voice note capture in the style of Voice Memos.
+//
 
 import SwiftUI
-
-struct AISetupBanner: View {
-    let issue: GeminiError
-
-    var body: some View {
-        Label(issue.localizedDescription, systemImage: "exclamationmark.triangle.fill")
-            .font(.footnote)
-            .foregroundStyle(.primary)
-            .padding(12)
-            .frame(maxWidth: .infinity, alignment: .leading)
-            .background(Color.orange.opacity(0.15), in: RoundedRectangle(cornerRadius: 12))
-    }
-}
 
 struct VoiceInputView: View {
     @Environment(\.dismiss) private var dismiss
@@ -33,45 +22,50 @@ struct VoiceInputView: View {
             VStack(spacing: 24) {
                 if let issue { AISetupBanner(issue: issue) }
 
-                Spacer()
+                Spacer(minLength: 0)
 
-                Image(systemName: recorder.isRecording ? "waveform.circle.fill" : "mic.circle")
-                    .font(.system(size: 80, weight: .ultraLight))
-                    .foregroundStyle(recorder.isRecording ? Color.red : JournalTheme.gold)
-                    .symbolEffect(.pulse, isActive: recorder.isRecording)
+                Image(systemName: "waveform")
+                    .font(.system(size: 54, weight: .light))
+                    .foregroundStyle(recorder.isRecording ? Color.red : Color.secondary)
+                    .symbolEffect(.variableColor.iterative, isActive: recorder.isRecording)
                     .accessibilityHidden(true)
 
                 Text(recorder.statusMessage)
                     .font(.body)
                     .multilineTextAlignment(.center)
                     .foregroundStyle(.secondary)
+                    .frame(maxWidth: 320)
 
                 Button {
                     Task { await recorder.toggle() }
                 } label: {
-                    Text(recorder.isRecording ? "Stop recording" : "Start recording")
-                        .font(.headline)
-                        .foregroundStyle(recorder.isRecording ? Color.white : JournalTheme.shell)
-                        .frame(maxWidth: .infinity, minHeight: 52)
-                        .background(recorder.isRecording ? JournalTheme.danger : JournalTheme.gold)
-                        .clipShape(RoundedRectangle(cornerRadius: 14))
+                    ZStack {
+                        Circle()
+                            .strokeBorder(Color.secondary.opacity(0.4), lineWidth: 4)
+                            .frame(width: 84, height: 84)
+                        RoundedRectangle(cornerRadius: recorder.isRecording ? 8 : 34, style: .continuous)
+                            .fill(Color.red)
+                            .frame(width: recorder.isRecording ? 32 : 68, height: recorder.isRecording ? 32 : 68)
+                    }
+                    .animation(.spring(duration: 0.3), value: recorder.isRecording)
                 }
+                .buttonStyle(.plain)
+                .accessibilityLabel(recorder.isRecording ? Text("Stop Recording") : Text("Start Recording"))
                 .accessibilityIdentifier("record-button")
+                .sensoryFeedback(.impact, trigger: recorder.isRecording)
+
+                Spacer(minLength: 0)
 
                 Button(action: analyse) {
-                    Text("Analyse with Gemini")
-                        .font(.headline)
-                        .foregroundStyle(.primary)
-                        .frame(maxWidth: .infinity, minHeight: 52)
-                        .background(Color.gray.opacity(0.25))
-                        .clipShape(RoundedRectangle(cornerRadius: 14))
+                    Label("Analyse with Gemini", systemImage: "sparkles")
+                        .frame(maxWidth: .infinity)
                 }
+                .buttonStyle(.borderedProminent)
+                .controlSize(.large)
                 .disabled(recorder.recordingURL == nil || recorder.isRecording || issue != nil)
-
-                Spacer()
             }
             .padding(24)
-            .navigationTitle("Voice note")
+            .navigationTitle("Voice Note")
             .navigationBarTitleDisplayMode(.inline)
             .toolbar {
                 ToolbarItem(placement: .cancellationAction) {
@@ -81,7 +75,7 @@ struct VoiceInputView: View {
             .onAppear { issue = AIReadiness.issue() }
             .onDisappear { if !handedOff { recorder.discard() } }
         }
-        .tint(JournalTheme.gold)
+        .presentationDetents([.medium, .large])
     }
 
     private func analyse() {

@@ -24,6 +24,7 @@ struct ExpenseEditorView: View {
     @State private var note: String
     @State private var confirmDelete = false
     @State private var budgetMessage: String?
+    @State private var savedCount = 0
     @FocusState private var amountFocused: Bool
 
     init(expense: Expense?, defaultDate: Date) {
@@ -55,37 +56,63 @@ struct ExpenseEditorView: View {
         NavigationStack {
             Form {
                 Section {
-                    Picker("Type", selection: $isIncome) {
-                        Text("Expense").tag(false)
-                        Text("Income").tag(true)
-                    }
-                    .pickerStyle(.segmented)
-                    .accessibilityIdentifier("field-type")
-                }
+                    VStack(spacing: 14) {
+                        Picker("Type", selection: $isIncome) {
+                            Text("Expense").tag(false)
+                            Text("Income").tag(true)
+                        }
+                        .pickerStyle(.segmented)
+                        .accessibilityIdentifier("field-type")
 
-                Section("Details") {
+                        HStack(alignment: .firstTextBaseline, spacing: 6) {
+                            TextField("0", text: $amountText)
+                                .font(Theme.amount(.largeTitle, weight: .bold))
+                                .monospacedDigit()
+                                .multilineTextAlignment(.center)
+                                .keyboardType(.decimalPad)
+                                .focused($amountFocused)
+                                .minimumScaleFactor(0.5)
+                                .fixedSize()
+                                .accessibilityLabel(Text("Amount"))
+                                .accessibilityIdentifier("field-amount")
+                            Text(verbatim: "€")
+                                .font(Theme.amount(.title, weight: .semibold))
+                                .foregroundStyle(.secondary)
+                        }
+                        .foregroundStyle(isIncome ? Theme.income : Color.primary)
+                        .frame(maxWidth: .infinity)
+                        .contentShape(Rectangle())
+                        .onTapGesture { amountFocused = true }
+
+                        if !amountText.isEmpty && parsedAmount == nil {
+                            Text("Enter an amount greater than 0, e.g. 12,50")
+                                .font(.footnote)
+                                .foregroundStyle(.red)
+                        }
+                    }
+                    .padding(.vertical, 8)
+                }
+                .listRowBackground(Color.clear)
+
+                Section {
                     TextField(isIncome ? LocalizedStringKey("Source, e.g. employer") : LocalizedStringKey("Store or description"), text: $store)
                         .textInputAutocapitalization(.words)
                         .accessibilityIdentifier("field-store")
 
-                    HStack {
-                        TextField("Amount", text: $amountText)
-                            .keyboardType(.decimalPad)
-                            .focused($amountFocused)
-                            .accessibilityIdentifier("field-amount")
-                        Text(verbatim: "EUR").foregroundStyle(.secondary)
-                    }
-                    if !amountText.isEmpty && parsedAmount == nil {
-                        Text("Enter an amount greater than 0, e.g. 12,50")
-                            .font(.footnote)
-                            .foregroundStyle(.red)
-                    }
-
-                    Picker("Category", selection: $category) {
+                    Picker(selection: $category) {
                         ForEach(categories) { item in
-                            Label(item.title, systemImage: item.symbol).tag(item)
+                            Label {
+                                Text(item.title)
+                            } icon: {
+                                CategoryIcon(category: item, size: 28)
+                            }
+                            .tag(item)
                         }
+                    } label: {
+                        Text("Category")
                     }
+                    .pickerStyle(.navigationLink)
+
                     DatePicker("Date", selection: $date)
                 }
 
@@ -99,11 +126,11 @@ struct ExpenseEditorView: View {
                         LabeledContent("Added via", value: expense.source.title)
                     }
                     Section {
-                        Button("Delete entry", role: .destructive) { confirmDelete = true }
+                        Button("Delete Entry", role: .destructive) { confirmDelete = true }
                     }
                 }
             }
-            .navigationTitle(expense == nil ? Text("New entry") : Text("Edit entry"))
+            .navigationTitle(expense == nil ? Text("New Entry") : Text("Edit Entry"))
             .navigationBarTitleDisplayMode(.inline)
             .toolbar {
                 ToolbarItem(placement: .cancellationAction) {
@@ -119,6 +146,9 @@ struct ExpenseEditorView: View {
                     Button("Done") { amountFocused = false }
                 }
             }
+            .onAppear {
+                if expense == nil && amountText.isEmpty { amountFocused = true }
+            }
             .onChange(of: isIncome) { _, income in
                 if category.isIncome != income {
                     category = income ? .salary : .other
@@ -133,8 +163,8 @@ struct ExpenseEditorView: View {
             } message: {
                 Text(budgetMessage ?? "")
             }
+            .sensoryFeedback(.success, trigger: savedCount)
         }
-        .tint(JournalTheme.gold)
     }
 
     private var budgetAlertBinding: Binding<Bool> {
@@ -174,6 +204,7 @@ struct ExpenseEditorView: View {
             ))
         }
         try? context.save()
+        savedCount += 1
 
         if !isIncome, let message = budgetWarning(spentBefore: spentBefore, amount: amount) {
             budgetMessage = message // the alert dismisses the editor when closed

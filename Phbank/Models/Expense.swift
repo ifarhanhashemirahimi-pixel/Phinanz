@@ -45,22 +45,23 @@ enum ExpenseCategory: String, CaseIterable, Codable, Identifiable {
         }
     }
 
+    /// SF Symbol shown in white on the category colour.
     var symbol: String {
         switch self {
-        case .groceries: "cart"
+        case .groceries: "cart.fill"
         case .food: "fork.knife"
         case .transport: "tram.fill"
-        case .housing: "house"
-        case .entertainment: "film"
-        case .health: "cross.case"
-        case .shopping: "bag"
+        case .housing: "house.fill"
+        case .entertainment: "film.fill"
+        case .health: "cross.case.fill"
+        case .shopping: "bag.fill"
         case .software: "laptopcomputer"
         case .travel: "airplane"
-        case .other: "ellipsis.circle"
-        case .salary: "banknote"
-        case .freelance: "briefcase"
-        case .refund: "arrow.uturn.backward.circle"
-        case .otherIncome: "plus.circle"
+        case .other: "ellipsis"
+        case .salary: "banknote.fill"
+        case .freelance: "briefcase.fill"
+        case .refund: "arrow.uturn.backward"
+        case .otherIncome: "plus"
         }
     }
 

@@ -62,7 +62,6 @@ struct PhbankApp: App {
                         .transition(.opacity)
                 }
             }
-            .preferredColorScheme(.dark)
             .task {
                 if lock.isLocked { await lock.unlock() }
             }

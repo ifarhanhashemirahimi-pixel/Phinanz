@@ -2,7 +2,8 @@
 //  OnboardingView.swift
 //  Phbank
 //
-//  First-launch welcome: what PHINANZ is, privacy, and a short setup.
+//  First-launch welcome in the style of Apple's own apps:
+//  big title, three feature rows, one prominent button.
 //
 
 import SwiftUI
@@ -13,114 +14,109 @@ struct OnboardingView: View {
     @AppStorage(SettingsKeys.startingBalance) private var startingBalance = 0.0
     @AppStorage(SettingsKeys.lockEnabled) private var lockEnabled = false
 
-    @State private var page = 0
+    @State private var step = 0
     @State private var balanceText = ""
     private let lockAvailable = AppLock.canAuthenticate
 
     var body: some View {
-        ZStack {
-            JournalTheme.shell.ignoresSafeArea()
-
-            VStack(spacing: 0) {
-                TabView(selection: $page) {
-                    welcome.tag(0)
-                    privacy.tag(1)
-                    setup.tag(2)
-                }
-                .tabViewStyle(.page(indexDisplayMode: .always))
-
+        NavigationStack {
+            Group {
+                if step == 0 { welcome } else { setup }
+            }
+            .safeAreaInset(edge: .bottom) {
                 Button(action: next) {
-                    Text(page < 2 ? LocalizedStringKey("Continue") : LocalizedStringKey("Open my journal"))
-                        .font(JournalTheme.classicBold(18, relativeTo: .headline))
-                        .foregroundStyle(JournalTheme.shell)
-                        .frame(maxWidth: .infinity, minHeight: 54)
-                        .background(JournalTheme.gold, in: RoundedRectangle(cornerRadius: 16))
+                    Text(step == 0 ? LocalizedStringKey("Continue") : LocalizedStringKey("Get Started"))
+                        .frame(maxWidth: .infinity)
                 }
-                .padding(.horizontal, 28)
-                .padding(.bottom, 24)
+                .buttonStyle(.borderedProminent)
+                .controlSize(.large)
+                .padding(.horizontal, 24)
+                .padding(.bottom, 12)
                 .accessibilityIdentifier("onboarding-continue")
             }
+            .animation(.snappy, value: step)
         }
-        .foregroundStyle(JournalTheme.ivory)
-        .tint(JournalTheme.gold)
+        .interactiveDismissDisabled()
     }
 
     // MARK: Pages
 
     private var welcome: some View {
-        infoPage(
-            icon: "book.closed.fill",
-            title: "Your money, written like a diary",
-            text: "PHINANZ gives every day of the year its own notebook page. Write down what you spend and earn, and see where your money goes."
-        )
-    }
+        ScrollView {
+            VStack(spacing: 36) {
+                VStack(spacing: 14) {
+                    SettingsIcon(systemName: "book.pages.fill", color: .blue, size: 88)
+                    Text("Welcome to PHINANZ")
+                        .font(.largeTitle.bold())
+                        .multilineTextAlignment(.center)
+                }
+                .padding(.top, 48)
 
-    private var privacy: some View {
-        infoPage(
-            icon: "lock.shield",
-            title: "Private by design",
-            text: "Your journal stays on this iPhone. AI import with Google Gemini is optional, off by default, and only sends the file you choose."
-        )
+                VStack(alignment: .leading, spacing: 26) {
+                    FeatureRow(
+                        systemName: "book.pages",
+                        color: .blue,
+                        title: "A Page for Every Day",
+                        text: "Write down what you spend and earn. Every day of the year has its own page."
+                    )
+                    FeatureRow(
+                        systemName: "chart.pie.fill",
+                        color: .orange,
+                        title: "See Where Your Money Goes",
+                        text: "Summaries, budgets and recurring payments show the whole month at a glance."
+                    )
+                    FeatureRow(
+                        systemName: "lock.shield.fill",
+                        color: .green,
+                        title: "Private by Design",
+                        text: "Your journal stays on this iPhone. AI import is optional and off by default."
+                    )
+                }
+                .padding(.horizontal, 8)
+            }
+            .padding(.horizontal, 24)
+            .frame(maxWidth: 560)
+            .frame(maxWidth: .infinity)
+        }
     }
 
     private var setup: some View {
-        VStack(spacing: 22) {
-            Spacer()
-            Image(systemName: "slider.horizontal.3")
-                .font(.system(size: 54, weight: .thin))
-                .foregroundStyle(JournalTheme.gold)
-                .accessibilityHidden(true)
-            Text("Quick setup")
-                .font(JournalTheme.classicBold(28, relativeTo: .title))
+        Form {
+            Section {
+                VStack(spacing: 10) {
+                    SettingsIcon(systemName: "slider.horizontal.3", color: .gray, size: 64)
+                    Text("Quick Setup")
+                        .font(.title.bold())
+                    Text("You can change this later in Settings.")
+                        .font(.subheadline)
+                        .foregroundStyle(.secondary)
+                }
+                .frame(maxWidth: .infinity)
+                .listRowBackground(Color.clear)
+            }
 
-            VStack(alignment: .leading, spacing: 8) {
-                Text("Current account balance (optional)")
-                    .font(.footnote)
-                    .foregroundStyle(JournalTheme.ivory.opacity(0.7))
-                HStack {
+            Section {
+                LabeledContent {
                     TextField("0,00", text: $balanceText)
                         .keyboardType(.numbersAndPunctuation)
-                        .font(JournalTheme.classicBold(22, relativeTo: .title2))
-                    Text(verbatim: "€")
+                        .multilineTextAlignment(.trailing)
+                } label: {
+                    SettingsLabel(title: "Current Balance", systemName: "building.columns.fill", color: .indigo)
                 }
-                .padding(14)
-                .background(Color.white.opacity(0.08), in: RoundedRectangle(cornerRadius: 12))
+            } footer: {
+                Text("Optional. Used to show your balance in Summary and the widget.")
             }
 
             if lockAvailable {
-                Toggle(isOn: lockBinding) {
-                    Label("Protect with Face ID", systemImage: "faceid")
+                Section {
+                    Toggle(isOn: lockBinding) {
+                        SettingsLabel(title: "Face ID Lock", systemName: "faceid", color: .green)
+                    }
+                } footer: {
+                    Text("Locks the journal whenever you leave the app.")
                 }
-                .padding(14)
-                .background(Color.white.opacity(0.08), in: RoundedRectangle(cornerRadius: 12))
             }
-            Spacer()
         }
-        .padding(.horizontal, 28)
-        .environment(\.colorScheme, .dark)
-    }
-
-    private func infoPage(icon: String, title: LocalizedStringKey, text: LocalizedStringKey) -> some View {
-        VStack(spacing: 22) {
-            Spacer()
-            ZStack {
-                Circle().stroke(JournalTheme.gold, lineWidth: 1.5).frame(width: 120, height: 120)
-                Image(systemName: icon)
-                    .font(.system(size: 48, weight: .thin))
-                    .foregroundStyle(JournalTheme.gold)
-            }
-            .accessibilityHidden(true)
-            Text(title)
-                .font(JournalTheme.classicBold(28, relativeTo: .title))
-                .multilineTextAlignment(.center)
-            Text(text)
-                .font(JournalTheme.classic(17))
-                .multilineTextAlignment(.center)
-                .foregroundStyle(JournalTheme.ivory.opacity(0.8))
-            Spacer()
-            Spacer()
-        }
-        .padding(.horizontal, 32)
     }
 
     // MARK: Actions
@@ -143,8 +139,8 @@ struct OnboardingView: View {
     }
 
     private func next() {
-        if page < 2 {
-            withAnimation { page += 1 }
+        if step == 0 {
+            step = 1
             return
         }
         let trimmed = balanceText.trimmingCharacters(in: .whitespacesAndNewlines)
@@ -153,5 +149,30 @@ struct OnboardingView: View {
             startingBalance = negative ? -value : value
         }
         onFinish()
+    }
+}
+
+private struct FeatureRow: View {
+    let systemName: String
+    let color: Color
+    let title: LocalizedStringKey
+    let text: LocalizedStringKey
+
+    var body: some View {
+        HStack(alignment: .top, spacing: 16) {
+            Image(systemName: systemName)
+                .font(.system(size: 30, weight: .regular))
+                .foregroundStyle(color)
+                .frame(width: 44)
+                .accessibilityHidden(true)
+            VStack(alignment: .leading, spacing: 3) {
+                Text(title).font(.headline)
+                Text(text)
+                    .font(.subheadline)
+                    .foregroundStyle(.secondary)
+                    .fixedSize(horizontal: false, vertical: true)
+            }
+        }
+        .accessibilityElement(children: .combine)
     }
 }

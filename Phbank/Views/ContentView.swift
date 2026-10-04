@@ -2,24 +2,27 @@
 //  ContentView.swift
 //  Phbank
 //
-//  The journal: a lazily-built horizontal pager with one page per day of the year.
+//  Root of the app: a standard tab bar (Liquid Glass on iOS 26) with
+//  Journal, Summary, Plan and Search.
 //
 
 import SwiftUI
 import SwiftData
 
+enum AppTab: Hashable {
+    case journal, summary, plan, search
+}
+
 enum ActiveSheet: Identifiable {
-    case settings, search, voice, scan, summary
+    case settings, voice, scan
     case add(Date)
     case edit(Expense)
 
     var id: String {
         switch self {
         case .settings: "settings"
-        case .search: "search"
         case .voice: "voice"
         case .scan: "scan"
-        case .summary: "summary"
         case .add(let day): "add-\(day.timeIntervalSince1970)"
         case .edit(let expense): "edit-\(ObjectIdentifier(expense).hashValue)"
         }
@@ -34,48 +37,46 @@ struct ContentView: View {
     @Query private var budgets: [CategoryBudget]
     @AppStorage(SettingsKeys.startingBalance) private var startingBalance = 0.0
     @AppStorage(SettingsKeys.didOnboard) private var didOnboard = false
-    @State private var showOnboarding = false
 
-    @State private var year = Calendar.current.component(.year, from: Date())
-    @State private var selectedDayIndex: Int?
+    @State private var selectedTab: AppTab = .journal
+    @State private var journalDate = Calendar.current.startOfDay(for: Date())
     @State private var activeSheet: ActiveSheet?
     @State private var importer = ImportController()
+    @State private var showOnboarding = false
 
     private let calendar = Calendar.current
 
     var body: some View {
-        let days = YearCalendar.days(in: year, calendar: calendar)
-        let grouped = YearCalendar.groupByDay(expenses, calendar: calendar)
-
-        ZStack(alignment: .bottom) {
-            JournalTheme.shell.ignoresSafeArea()
-
-            VStack(spacing: 0) {
-                yearHeader
-                pager(days: days, grouped: grouped)
+        TabView(selection: $selectedTab) {
+            Tab("Journal", systemImage: "book.pages", value: AppTab.journal) {
+                JournalView(expenses: expenses, selectedDate: $journalDate, activeSheet: $activeSheet)
             }
-
-            LiquidGlassTabBar(
-                onSettings: { activeSheet = .settings },
-                onSearch: { activeSheet = .search },
-                onVoice: { activeSheet = .voice },
-                onScan: { activeSheet = .scan },
-                onSummary: { activeSheet = .summary },
-                onToday: { jump(to: Date()) }
-            )
-
+            Tab("Summary", systemImage: "chart.pie", value: AppTab.summary) {
+                SummaryView(expenses: expenses, activeSheet: $activeSheet)
+            }
+            Tab("Plan", systemImage: "calendar.badge.clock", value: AppTab.plan) {
+                PlanView(expenses: expenses, activeSheet: $activeSheet)
+            }
+            Tab(value: AppTab.search, role: .search) {
+                SearchView(expenses: expenses, activeSheet: $activeSheet)
+            }
+        }
+        .tabBarMinimizeBehavior(.onScrollDown)
+        .overlay {
             if importer.phase == .processing {
-                PHLoadingView()
+                AnalysingHUD()
                     .transition(.opacity)
-                    .zIndex(1)
             }
         }
         .animation(.easeInOut(duration: 0.25), value: importer.phase)
         .sheet(item: $activeSheet, content: sheetContent)
         .sheet(isPresented: $importer.showReview) {
-            ReviewDraftsView(importer: importer) { jump(to: $0) }
+            ReviewDraftsView(importer: importer) { date in
+                journalDate = calendar.startOfDay(for: date)
+                selectedTab = .journal
+            }
         }
-        .alert("Couldn't analyse", isPresented: failureBinding) {
+        .alert("Couldn't Analyse", isPresented: failureBinding) {
             Button("OK", role: .cancel) {}
         } message: {
             Text(importer.failureMessage)
@@ -88,9 +89,6 @@ struct ContentView: View {
             }
         }
         .task {
-            if selectedDayIndex == nil {
-                selectedDayIndex = YearCalendar.index(of: Date(), in: year, calendar: calendar)
-            }
             RecurringScheduler.run(in: context)
             if !didOnboard && !AppEnvironment.isUITest { showOnboarding = true }
         }
@@ -112,83 +110,10 @@ struct ContentView: View {
         }
     }
 
-    // MARK: Pager
-
-    private func pager(days: [Date], grouped: [Date: [Expense]]) -> some View {
-        ScrollView(.horizontal) {
-            LazyHStack(spacing: 0) {
-                ForEach(Array(days.enumerated()), id: \.offset) { _, day in
-                    YearlyDayPageView(
-                        date: day,
-                        expenses: (grouped[day] ?? []).sorted { $0.date < $1.date },
-                        isToday: calendar.isDateInToday(day),
-                        onAdd: { activeSheet = .add(YearCalendar.entryDate(on: day, calendar: calendar)) },
-                        onEdit: { activeSheet = .edit($0) }
-                    )
-                    .containerRelativeFrame(.horizontal)
-                    .padding(.bottom, 84)
-                }
-            }
-            .scrollTargetLayout()
-        }
-        .scrollTargetBehavior(.paging)
-        .scrollIndicators(.hidden)
-        .scrollPosition(id: $selectedDayIndex)
-    }
-
-    private var yearHeader: some View {
-        HStack(spacing: 18) {
-            Button { changeYear(by: -1) } label: {
-                Image(systemName: "chevron.backward").frame(width: 44, height: 44)
-            }
-            .accessibilityLabel(Text("Previous year"))
-
-            Text(String(year))
-                .font(JournalTheme.classicBold(18, relativeTo: .headline))
-                .kerning(2)
-                .accessibilityAddTraits(.isHeader)
-
-            Button { changeYear(by: 1) } label: {
-                Image(systemName: "chevron.forward").frame(width: 44, height: 44)
-            }
-            .accessibilityLabel(Text("Next year"))
-        }
-        .foregroundStyle(JournalTheme.gold)
-        .frame(maxWidth: .infinity)
-    }
-
     /// Changes whenever the numbers shown in the widget could change.
     private var widgetKey: String {
         let day = calendar.startOfDay(for: Date()).timeIntervalSince1970
         return "\(expenses.count)|\(ExpenseStats.net(expenses))|\(ExpenseStats.total(expenses))|\(budgets.count)|\(startingBalance)|\(day)"
-    }
-
-    // MARK: Navigation helpers
-
-    private func changeYear(by delta: Int) {
-        year += delta
-        let currentYear = calendar.component(.year, from: Date())
-        selectedDayIndex = year == currentYear
-            ? YearCalendar.index(of: Date(), in: year, calendar: calendar)
-            : 0
-    }
-
-    private func jump(to date: Date) {
-        let targetYear = calendar.component(.year, from: date)
-        if targetYear != year { year = targetYear }
-        let index = YearCalendar.index(of: date, in: targetYear, calendar: calendar)
-        DispatchQueue.main.async {
-            withAnimation(.easeInOut(duration: 0.4)) { selectedDayIndex = index }
-        }
-    }
-
-    /// The day currently shown in the pager (today as a fallback).
-    private var visibleDay: Date {
-        if let index = selectedDayIndex,
-           let day = YearCalendar.date(at: index, in: year, calendar: calendar) {
-            return day
-        }
-        return calendar.startOfDay(for: Date())
     }
 
     private var failureBinding: Binding<Bool> {
@@ -198,23 +123,36 @@ struct ContentView: View {
         )
     }
 
+    private var importFallbackDate: Date {
+        YearCalendar.entryDate(on: journalDate, calendar: calendar)
+    }
+
     @ViewBuilder
     private func sheetContent(_ sheet: ActiveSheet) -> some View {
         switch sheet {
         case .settings:
-            SettingsView(expenses: expenses, year: year)
-        case .search:
-            SearchView(expenses: expenses) { jump(to: $0) }
+            SettingsView(expenses: expenses, year: calendar.component(.year, from: journalDate))
         case .voice:
-            VoiceInputView(importer: importer, fallbackDate: YearCalendar.entryDate(on: visibleDay, calendar: calendar))
+            VoiceInputView(importer: importer, fallbackDate: importFallbackDate)
         case .scan:
-            ScanImportView(importer: importer, fallbackDate: YearCalendar.entryDate(on: visibleDay, calendar: calendar))
-        case .summary:
-            SummaryView(expenses: expenses, anchor: visibleDay)
+            ScanImportView(importer: importer, fallbackDate: importFallbackDate)
         case .add(let day):
             ExpenseEditorView(expense: nil, defaultDate: day)
         case .edit(let expense):
             ExpenseEditorView(expense: expense, defaultDate: expense.date)
+        }
+    }
+}
+
+/// Toolbar button that opens Settings, shared by the tabs.
+struct SettingsToolbarButton: View {
+    @Binding var activeSheet: ActiveSheet?
+
+    var body: some View {
+        Button {
+            activeSheet = .settings
+        } label: {
+            Label("Settings", systemImage: "gearshape")
         }
     }
 }

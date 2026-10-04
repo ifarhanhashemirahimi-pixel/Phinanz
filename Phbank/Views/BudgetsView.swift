@@ -29,7 +29,7 @@ struct BudgetsView: View {
                 LabeledContent("Total monthly budget", value: Money.format(totalLimit))
             }
         }
-        .navigationTitle("Monthly budgets")
+        .navigationTitle("Monthly Budgets")
         .navigationBarTitleDisplayMode(.inline)
         .scrollDismissesKeyboard(.interactively)
     }
@@ -49,7 +49,7 @@ private struct BudgetField: View {
             Label {
                 Text(category.title)
             } icon: {
-                Image(systemName: category.symbol).foregroundStyle(category.color)
+                CategoryIcon(category: category, size: 29)
             }
             Spacer()
             TextField("No limit", text: $text)

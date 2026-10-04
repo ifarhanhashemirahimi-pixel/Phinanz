@@ -26,42 +26,47 @@ struct ScanImportView: View {
 
     var body: some View {
         NavigationStack {
-            VStack(spacing: 16) {
-                if let issue { AISetupBanner(issue: issue) }
-
-                Button { showScanner = true } label: {
-                    ScanActionCard(
-                        title: "Scan receipt",
-                        subtitle: cameraAvailable ? LocalizedStringKey("Capture with the camera") : LocalizedStringKey("Camera scanning isn't available here"),
-                        icon: "camera.viewfinder"
-                    )
+            List {
+                if let issue {
+                    Section {
+                        AISetupBanner(issue: issue)
+                    }
+                    .listRowBackground(Color.clear)
+                    .listRowInsets(EdgeInsets())
                 }
-                .disabled(!cameraAvailable || issue != nil)
 
-                PhotosPicker(selection: $photoItem, matching: .images) {
-                    ScanActionCard(title: "Choose receipt photo", subtitle: "From your photo library", icon: "photo")
-                }
-                .disabled(issue != nil)
+                Section {
+                    Button { showScanner = true } label: {
+                        ImportOptionRow(
+                            title: "Scan Receipt",
+                            subtitle: cameraAvailable ? "Capture with the camera" : "Camera scanning isn't available here",
+                            systemName: "doc.viewfinder",
+                            color: .blue
+                        )
+                    }
+                    .disabled(!cameraAvailable || issue != nil)
 
-                Button { showFileImporter = true } label: {
-                    ScanActionCard(title: "Import PDF", subtitle: "Bank statement from Files", icon: "doc.badge.plus")
+                    PhotosPicker(selection: $photoItem, matching: .images) {
+                        ImportOptionRow(title: "Choose Receipt Photo", subtitle: "From your photo library", systemName: "photo.on.rectangle", color: .orange)
+                    }
+                    .disabled(issue != nil)
+
+                    Button { showFileImporter = true } label: {
+                        ImportOptionRow(title: "Import Bank Statement", subtitle: "PDF from the Files app", systemName: "doc.text.fill", color: .indigo)
+                    }
+                    .disabled(issue != nil)
+                } footer: {
+                    Text("The file is sent to Google Gemini to read the entries. You review everything before it is saved.")
                 }
-                .disabled(issue != nil)
 
                 if let message {
-                    Text(message).font(.footnote).foregroundStyle(.red)
+                    Section {
+                        Text(message).foregroundStyle(.red)
+                    }
                 }
-
-                Text("The file is sent to Google Gemini to read the entries. You review everything before it is saved.")
-                    .font(.footnote)
-                    .foregroundStyle(.secondary)
-                    .frame(maxWidth: .infinity, alignment: .leading)
-
-                Spacer()
             }
-            .padding(24)
-            .buttonStyle(.plain)
-            .navigationTitle("Import")
+            .listStyle(.insetGrouped)
+            .navigationTitle("Import with AI")
             .navigationBarTitleDisplayMode(.inline)
             .toolbar {
                 ToolbarItem(placement: .cancellationAction) {
@@ -104,7 +109,7 @@ struct ScanImportView: View {
                 }
             }
         }
-        .tint(JournalTheme.gold)
+        .presentationDetents([.medium, .large])
     }
 
     private func begin(_ image: UIImage) {
@@ -115,28 +120,24 @@ struct ScanImportView: View {
     }
 }
 
-struct ScanActionCard: View {
+struct ImportOptionRow: View {
     let title: LocalizedStringKey
     let subtitle: LocalizedStringKey
-    let icon: String
+    let systemName: String
+    let color: Color
 
     var body: some View {
-        HStack(spacing: 16) {
-            Image(systemName: icon)
-                .font(.system(size: 24))
-                .frame(width: 50, height: 50)
-                .background(Color.white)
-                .clipShape(RoundedRectangle(cornerRadius: 12))
-                .foregroundStyle(JournalTheme.brown)
-                .accessibilityHidden(true)
-            VStack(alignment: .leading, spacing: 4) {
-                Text(title).font(.headline).foregroundStyle(.primary)
-                Text(subtitle).font(.subheadline).foregroundStyle(.secondary)
+        HStack(spacing: 14) {
+            SettingsIcon(systemName: systemName, color: color, size: 36)
+            VStack(alignment: .leading, spacing: 2) {
+                Text(title).foregroundStyle(.primary)
+                Text(subtitle)
+                    .font(.footnote)
+                    .foregroundStyle(.secondary)
             }
             Spacer()
         }
-        .padding(16)
-        .background(Color.gray.opacity(0.1), in: RoundedRectangle(cornerRadius: 16))
+        .padding(.vertical, 4)
         .contentShape(Rectangle())
         .accessibilityElement(children: .combine)
     }

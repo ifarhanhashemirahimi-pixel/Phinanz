@@ -45,7 +45,7 @@ struct RecurringListView: View {
                 }
             }
         }
-        .navigationTitle("Recurring payments")
+        .navigationTitle("Recurring Payments")
         .navigationBarTitleDisplayMode(.inline)
         .toolbar {
             ToolbarItem(placement: .primaryAction) {
@@ -63,10 +63,7 @@ struct RecurringListView: View {
 
     private func row(_ payment: RecurringPayment) -> some View {
         HStack(spacing: 12) {
-            Image(systemName: payment.category.symbol)
-                .foregroundStyle(payment.category.color)
-                .frame(width: 28)
-                .accessibilityHidden(true)
+            CategoryIcon(category: payment.category, size: 32)
             VStack(alignment: .leading, spacing: 2) {
                 Text(payment.name).font(.headline)
                 Group {
@@ -81,7 +78,8 @@ struct RecurringListView: View {
             }
             Spacer()
             Text(verbatim: (payment.isIncome ? "+" : "") + Money.format(payment.amount))
-                .foregroundStyle(payment.isIncome ? JournalTheme.incomeLight : Color.primary)
+                .monospacedDigit()
+                .foregroundStyle(payment.isIncome ? Theme.income : Color.primary)
         }
         .opacity(payment.isActive ? 1 : 0.5)
         .accessibilityElement(children: .combine)
@@ -150,7 +148,12 @@ struct RecurringEditorView: View {
                     }
                     Picker("Category", selection: $category) {
                         ForEach(isIncome ? ExpenseCategory.incomeCases : ExpenseCategory.expenseCases) { item in
-                            Label(item.title, systemImage: item.symbol).tag(item)
+                            Label {
+                                Text(item.title)
+                            } icon: {
+                                CategoryIcon(category: item, size: 28)
+                            }
+                            .tag(item)
                         }
                     }
                 }
@@ -176,13 +179,13 @@ struct RecurringEditorView: View {
 
                 if payment != nil {
                     Section {
-                        Button("Delete recurring payment", role: .destructive, action: delete)
+                        Button("Delete Recurring Payment", role: .destructive, action: delete)
                     } footer: {
                         Text("Entries that were already booked stay in your journal.")
                     }
                 }
             }
-            .navigationTitle(payment == nil ? Text("New recurring payment") : Text("Edit recurring payment"))
+            .navigationTitle(payment == nil ? Text("New Recurring Payment") : Text("Edit Recurring Payment"))
             .navigationBarTitleDisplayMode(.inline)
             .toolbar {
                 ToolbarItem(placement: .cancellationAction) {
@@ -197,7 +200,6 @@ struct RecurringEditorView: View {
                 if category.isIncome != income { category = income ? .salary : .housing }
             }
         }
-        .tint(JournalTheme.gold)
     }
 
     private func save() {
