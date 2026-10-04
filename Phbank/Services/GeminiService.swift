@@ -23,19 +23,19 @@ enum GeminiError: LocalizedError, Equatable {
     var errorDescription: String? {
         switch self {
         case .consentRequired:
-            "AI import is turned off. Enable it in Settings to send recordings, photos or PDFs to Google Gemini."
+            String(localized: "AI import is turned off. Enable it in Settings to send recordings, photos or PDFs to Google Gemini.")
         case .missingAPIKey:
-            "No Gemini API key yet. Add one in Settings → AI import."
+            String(localized: "No Gemini API key yet. Add one in Settings → AI import.")
         case .invalidModel:
-            "The Gemini model name in Settings is not valid."
+            String(localized: "The Gemini model name in Settings is not valid.")
         case .fileTooLarge:
-            "This file is too large to analyse (limit about 18 MB)."
+            String(localized: "This file is too large to analyse (limit about 18 MB).")
         case let .http(status, message):
-            "Gemini returned an error (\(status)): \(message)"
+            String(localized: "Gemini returned an error (\(status)): \(message)")
         case .emptyResponse:
-            "Gemini returned no answer. Please try again."
+            String(localized: "Gemini returned no answer. Please try again.")
         case .invalidResponse:
-            "Gemini's answer could not be read. Please try again."
+            String(localized: "Gemini's answer could not be read. Please try again.")
         }
     }
 }
@@ -48,6 +48,12 @@ struct ParsedExpense: Codable, Equatable {
     var date: String?
     var time: String?
     var note: String?
+    /// "expense" (default) or "income".
+    var type: String?
+
+    var isIncome: Bool {
+        type?.lowercased() == "income" || ExpenseCategory.parse(category).isIncome
+    }
 }
 
 private struct ExpensesEnvelope: Decodable {
@@ -72,9 +78,9 @@ enum ImportKind {
 
     var label: String {
         switch self {
-        case .voice: "voice note"
-        case .receipt: "receipt"
-        case .statement: "statement"
+        case .voice: String(localized: "voice note")
+        case .receipt: String(localized: "receipt")
+        case .statement: String(localized: "statement")
         }
     }
 }
@@ -157,19 +163,20 @@ struct GeminiService {
         let task: String
         switch kind {
         case .voice:
-            task = "The audio is a spoken note (German, English or Persian) in which the user describes one or more purchases or payments they made. Extract each one."
+            task = "The audio is a spoken note (German, English or Persian) in which the user describes one or more purchases, payments or incomes. Extract each one. Money received (salary, refunds, gifts) has type \"income\"."
         case .receipt:
             task = "The image is a photographed shop or restaurant receipt. Return ONE expense for the total amount paid, using the merchant name as the store. Only return several expenses if the image clearly shows several separate receipts."
         case .statement:
-            task = "The document is a bank statement. Return one expense per outgoing payment (debit). Ignore incoming payments, running balances and transfers between the user's own accounts."
+            task = "The document is a bank statement. Return one entry per booking: outgoing payments (debits) with type \"expense\" and incoming payments (credits, e.g. salary) with type \"income\". Ignore running balances and transfers between the user's own accounts."
         }
 
         return """
-        You extract personal expenses for a German budgeting app.
+        You extract personal expenses and incomes for a German budgeting app.
         \(task)
 
         Rules:
         - Currency is EUR. "amount" is a positive number with "." as decimal separator.
+        - "type" is "expense" or "income". Expenses use a spending category, incomes use salary, freelance, refund or otherIncome.
         - "category" must be exactly one of: \(categories).
         - "date" uses yyyy-MM-dd and "time" uses 24-hour HH:mm. Omit them if they are not visible or stated. Today is \(today); resolve words like "yesterday" against it.
         - "store" is the merchant or a short description (max 60 characters).
@@ -189,7 +196,8 @@ struct GeminiService {
             "category": category,
             "date": ["type": "STRING"],
             "time": ["type": "STRING"],
-            "note": ["type": "STRING"]
+            "note": ["type": "STRING"],
+            "type": ["type": "STRING", "enum": ["expense", "income"]]
         ]
         let item: [String: Any] = [
             "type": "OBJECT",

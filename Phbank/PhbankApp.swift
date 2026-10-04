@@ -11,14 +11,14 @@ import SwiftData
 @main
 struct PhbankApp: App {
     @Environment(\.scenePhase) private var scenePhase
-    @AppStorage(SettingsKeys.lockEnabled) private var lockEnabled = true
+    @AppStorage(SettingsKeys.lockEnabled) private var lockEnabled = false
     @State private var lock: AppLock
 
     private let container: ModelContainer
 
     init() {
         let uiTesting = AppEnvironment.isUITest
-        let schema = Schema([Expense.self])
+        let schema = Schema(AppSchema.models)
 
         func makeContainer(inMemory: Bool) throws -> ModelContainer {
             let configuration = ModelConfiguration(

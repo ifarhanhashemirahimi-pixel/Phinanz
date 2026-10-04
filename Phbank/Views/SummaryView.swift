@@ -2,20 +2,23 @@
 //  SummaryView.swift
 //  Phbank
 //
-//  Monthly and yearly overview with a category donut and a monthly bar chart.
+//  Month / year overview: spending, income, balance, budgets and charts.
 //
 
 import SwiftUI
+import SwiftData
 import Charts
 
 struct SummaryView: View {
     enum Scope: String, CaseIterable, Identifiable {
-        case month = "Month"
-        case year = "Year"
+        case month, year
         var id: String { rawValue }
+        var title: LocalizedStringKey { self == .month ? "Month" : "Year" }
     }
 
     @Environment(\.dismiss) private var dismiss
+    @Query private var budgets: [CategoryBudget]
+    @AppStorage(SettingsKeys.startingBalance) private var startingBalance = 0.0
 
     let expenses: [Expense]
     @State private var scope: Scope = .month
@@ -36,10 +39,18 @@ struct SummaryView: View {
         calendar.dateInterval(of: component, for: anchor) ?? DateInterval(start: anchor, duration: 86_400)
     }
 
-    private var periodExpenses: [Expense] { ExpenseStats.expenses(expenses, in: interval) }
-    private var total: Double { ExpenseStats.total(periodExpenses) }
-    private var categories: [CategoryTotal] { ExpenseStats.byCategory(periodExpenses) }
-    private var topStores: [StoreTotal] { ExpenseStats.topStores(periodExpenses) }
+    private var periodEntries: [Expense] { ExpenseStats.expenses(expenses, in: interval) }
+    private var spent: Double { ExpenseStats.spending(periodEntries) }
+    private var earned: Double { ExpenseStats.income(periodEntries) }
+    private var net: Double { Money.roundCents(earned - spent) }
+    private var categories: [CategoryTotal] { ExpenseStats.byCategory(periodEntries) }
+    private var topStores: [StoreTotal] { ExpenseStats.topStores(periodEntries) }
+    private var balance: Double { ExpenseStats.balance(starting: startingBalance, entries: expenses) }
+
+    private var budgetStatuses: [BudgetStatus] {
+        guard scope == .month else { return [] }
+        return BudgetCalculator.statuses(budgets: budgets, entries: expenses, in: interval)
+    }
 
     private var dayCount: Int {
         calendar.dateComponents([.day], from: interval.start, to: interval.end).day ?? 1
@@ -51,17 +62,26 @@ struct SummaryView: View {
             : anchor.formatted(.dateTime.year())
     }
 
-    private struct MonthTotal: Identifiable {
+    private struct MonthBar: Identifiable {
         let label: String
+        let kind: String
         let total: Double
-        var id: String { label }
+        var id: String { label + kind }
     }
 
-    private var monthly: [MonthTotal] {
+    private var monthly: [MonthBar] {
         let year = calendar.component(.year, from: anchor)
-        let totals = ExpenseStats.monthlyTotals(expenses, year: year, calendar: calendar)
-        let names = calendar.shortMonthSymbols
-        return totals.enumerated().map { MonthTotal(label: names[$0.offset], total: $0.element) }
+        let spending = ExpenseStats.monthlyTotals(expenses, year: year, calendar: calendar)
+        let income = ExpenseStats.monthlyIncome(expenses, year: year, calendar: calendar)
+        let names = calendar.veryShortMonthSymbols
+        let spentLabel = String(localized: "Spent")
+        let incomeLabel = String(localized: "Income")
+        return (0..<12).flatMap { index in
+            [
+                MonthBar(label: names[index] + "\u{200B}\(index)", kind: spentLabel, total: spending[index]),
+                MonthBar(label: names[index] + "\u{200B}\(index)", kind: incomeLabel, total: income[index])
+            ]
+        }
     }
 
     // MARK: Body
@@ -71,25 +91,30 @@ struct SummaryView: View {
             ScrollView {
                 VStack(alignment: .leading, spacing: 24) {
                     Picker("Period", selection: $scope) {
-                        ForEach(Scope.allCases) { Text($0.rawValue).tag($0) }
+                        ForEach(Scope.allCases) { Text($0.title).tag($0) }
                     }
                     .pickerStyle(.segmented)
 
                     periodBar
                     totals
+                    balanceCard
 
-                    if periodExpenses.isEmpty {
+                    if !budgetStatuses.isEmpty { budgetSection }
+
+                    if periodEntries.isEmpty {
                         ContentUnavailableView(
                             "No entries",
                             systemImage: "book.closed",
-                            description: Text("Nothing was spent in this period.")
+                            description: Text("Nothing was booked in this period.")
                         )
                     } else {
-                        categoryChart
+                        if !categories.isEmpty { categoryChart }
                         if scope == .year { monthlyChart }
-                        categoryList
-                        storeList
+                        if !categories.isEmpty { categoryList }
+                        if !topStores.isEmpty { storeList }
                     }
+
+                    planningLinks
                 }
                 .padding(20)
             }
@@ -104,37 +129,84 @@ struct SummaryView: View {
         .tint(JournalTheme.gold)
     }
 
+    // MARK: Sections
+
     private var periodBar: some View {
         HStack {
-            Button { shift(-1) } label: { Image(systemName: "chevron.left").frame(width: 44, height: 44) }
-                .accessibilityLabel("Previous \(scope == .month ? "month" : "year")")
+            Button { shift(-1) } label: { Image(systemName: "chevron.backward").frame(width: 44, height: 44) }
+                .accessibilityLabel(scope == .month ? Text("Previous month") : Text("Previous year"))
             Spacer()
             Text(title)
                 .font(JournalTheme.classicBold(20, relativeTo: .title3))
                 .accessibilityAddTraits(.isHeader)
             Spacer()
-            Button { shift(1) } label: { Image(systemName: "chevron.right").frame(width: 44, height: 44) }
-                .accessibilityLabel("Next \(scope == .month ? "month" : "year")")
+            Button { shift(1) } label: { Image(systemName: "chevron.forward").frame(width: 44, height: 44) }
+                .accessibilityLabel(scope == .month ? Text("Next month") : Text("Next year"))
         }
     }
 
     private var totals: some View {
-        HStack(alignment: .top) {
-            VStack(alignment: .leading, spacing: 4) {
-                Text("Total spent").font(.footnote).foregroundStyle(.secondary)
-                Text(Money.format(total))
-                    .font(JournalTheme.classicBold(32, relativeTo: .largeTitle))
-                    .minimumScaleFactor(0.6)
-                    .lineLimit(1)
+        VStack(alignment: .leading, spacing: 14) {
+            HStack(alignment: .top) {
+                VStack(alignment: .leading, spacing: 4) {
+                    Text("Total spent").font(.footnote).foregroundStyle(.secondary)
+                    Text(Money.format(spent))
+                        .font(JournalTheme.classicBold(32, relativeTo: .largeTitle))
+                        .minimumScaleFactor(0.6)
+                        .lineLimit(1)
+                }
+                Spacer()
+                VStack(alignment: .trailing, spacing: 4) {
+                    Text("Per day").font(.footnote).foregroundStyle(.secondary)
+                    Text(Money.format(ExpenseStats.average(total: spent, over: dayCount)))
+                        .font(JournalTheme.classic(20, relativeTo: .title3))
+                }
             }
-            Spacer()
-            VStack(alignment: .trailing, spacing: 4) {
-                Text("Per day").font(.footnote).foregroundStyle(.secondary)
-                Text(Money.format(ExpenseStats.average(total: total, over: dayCount)))
-                    .font(JournalTheme.classic(20, relativeTo: .title3))
+            .accessibilityElement(children: .combine)
+
+            HStack {
+                metric(title: "Income", value: Money.format(earned), color: JournalTheme.incomeLight)
+                Spacer()
+                metric(title: "Net", value: (net >= 0 ? "+" : "") + Money.format(net),
+                       color: net >= 0 ? JournalTheme.incomeLight : .red)
             }
         }
+    }
+
+    private func metric(title: LocalizedStringKey, value: String, color: Color) -> some View {
+        VStack(alignment: .leading, spacing: 2) {
+            Text(title).font(.footnote).foregroundStyle(.secondary)
+            Text(value).font(JournalTheme.classicBold(18, relativeTo: .headline)).foregroundStyle(color)
+        }
         .accessibilityElement(children: .combine)
+    }
+
+    private var balanceCard: some View {
+        HStack {
+            Image(systemName: "building.columns")
+                .font(.title2)
+                .foregroundStyle(JournalTheme.gold)
+                .accessibilityHidden(true)
+            VStack(alignment: .leading, spacing: 2) {
+                Text("Current balance").font(.footnote).foregroundStyle(.secondary)
+                Text(Money.format(balance))
+                    .font(JournalTheme.classicBold(22, relativeTo: .title2))
+                    .foregroundStyle(balance >= 0 ? Color.primary : Color.red)
+            }
+            Spacer()
+        }
+        .padding(16)
+        .background(Color.gray.opacity(0.15), in: RoundedRectangle(cornerRadius: 16))
+        .accessibilityElement(children: .combine)
+    }
+
+    private var budgetSection: some View {
+        VStack(alignment: .leading, spacing: 12) {
+            Text("Budgets").font(.headline)
+            ForEach(budgetStatuses) { status in
+                BudgetRow(status: status)
+            }
+        }
     }
 
     private var categoryChart: some View {
@@ -148,19 +220,33 @@ struct SummaryView: View {
             .cornerRadius(3)
         }
         .frame(height: 200)
-        .accessibilityLabel("Spending by category")
-        .accessibilityValue(categories.map { "\($0.category.title) \(Money.format($0.total))" }.joined(separator: ", "))
+        .accessibilityLabel(Text("Spending by category"))
+        .accessibilityValue(Text(verbatim: categories.map { "\($0.category.title) \(Money.format($0.total))" }.joined(separator: ", ")))
     }
 
     private var monthlyChart: some View {
         VStack(alignment: .leading, spacing: 8) {
             Text("By month").font(.headline)
             Chart(monthly) { item in
-                BarMark(x: .value("Month", item.label), y: .value("Spent", item.total))
-                    .foregroundStyle(JournalTheme.gold)
-                    .cornerRadius(3)
+                BarMark(x: .value("Month", item.label), y: .value("Amount", item.total))
+                    .foregroundStyle(by: .value("Type", item.kind))
+                    .position(by: .value("Type", item.kind))
+                    .cornerRadius(2)
             }
-            .frame(height: 160)
+            .chartForegroundStyleScale([
+                String(localized: "Spent"): JournalTheme.gold,
+                String(localized: "Income"): JournalTheme.incomeLight
+            ])
+            .chartXAxis {
+                AxisMarks { value in
+                    AxisValueLabel {
+                        if let label = value.as(String.self) {
+                            Text(verbatim: String(label.prefix { $0 != "\u{200B}" }))
+                        }
+                    }
+                }
+            }
+            .frame(height: 180)
         }
     }
 
@@ -192,7 +278,7 @@ struct SummaryView: View {
             ForEach(topStores) { item in
                 HStack {
                     Text(item.store).lineLimit(1)
-                    Text("×\(item.count)").font(.footnote).foregroundStyle(.secondary)
+                    Text(verbatim: "×\(item.count)").font(.footnote).foregroundStyle(.secondary)
                     Spacer()
                     Text(Money.format(item.total))
                 }
@@ -201,14 +287,82 @@ struct SummaryView: View {
         }
     }
 
+    private var planningLinks: some View {
+        VStack(spacing: 0) {
+            NavigationLink {
+                BudgetsView()
+            } label: {
+                linkRow(title: "Monthly budgets", icon: "gauge.with.dots.needle.33percent")
+            }
+            Divider().padding(.leading, 44)
+            NavigationLink {
+                RecurringListView()
+            } label: {
+                linkRow(title: "Recurring payments", icon: "arrow.triangle.2.circlepath")
+            }
+        }
+        .background(Color.gray.opacity(0.15), in: RoundedRectangle(cornerRadius: 16))
+    }
+
+    private func linkRow(title: LocalizedStringKey, icon: String) -> some View {
+        HStack(spacing: 14) {
+            Image(systemName: icon).foregroundStyle(JournalTheme.gold).frame(width: 28)
+            Text(title).foregroundStyle(.primary)
+            Spacer()
+            Image(systemName: "chevron.forward").font(.footnote).foregroundStyle(.secondary)
+        }
+        .padding(.horizontal, 16)
+        .frame(minHeight: 50)
+        .contentShape(Rectangle())
+    }
+
     // MARK: Helpers
 
     private func percent(_ value: Double) -> String {
-        guard total > 0 else { return "" }
-        return (value / total).formatted(.percent.precision(.fractionLength(0)))
+        guard spent > 0 else { return "" }
+        return (value / spent).formatted(.percent.precision(.fractionLength(0)))
     }
 
     private func shift(_ delta: Int) {
         anchor = calendar.date(byAdding: component, value: delta, to: anchor) ?? anchor
+    }
+}
+
+struct BudgetRow: View {
+    let status: BudgetStatus
+
+    private var tint: Color {
+        switch status.level {
+        case .ok: JournalTheme.incomeLight
+        case .warning: .orange
+        case .over: .red
+        }
+    }
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: 6) {
+            HStack {
+                Image(systemName: status.category.symbol)
+                    .foregroundStyle(status.category.color)
+                    .accessibilityHidden(true)
+                Text(status.category.title)
+                Spacer()
+                Text(verbatim: "\(Money.format(status.spent)) / \(Money.format(status.limit))")
+                    .font(.footnote)
+                    .foregroundStyle(.secondary)
+            }
+            ProgressView(value: min(status.ratio, 1))
+                .tint(tint)
+            if status.level == .over {
+                Text("Over budget by \(Money.format(-status.remaining))")
+                    .font(.caption)
+                    .foregroundStyle(.red)
+            } else {
+                Text("\(Money.format(status.remaining)) left")
+                    .font(.caption)
+                    .foregroundStyle(.secondary)
+            }
+        }
+        .accessibilityElement(children: .combine)
     }
 }

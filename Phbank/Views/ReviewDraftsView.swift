@@ -84,10 +84,10 @@ private struct DraftRow: View {
         VStack(alignment: .leading, spacing: 10) {
             Toggle(isOn: $draft.include) {
                 VStack(alignment: .leading, spacing: 2) {
-                    Text(draft.store.isEmpty ? "Untitled" : draft.store).font(.headline)
-                    Text(draft.amount.map(Money.format) ?? "Check amount")
+                    Text(draft.store.isEmpty ? String(localized: "Untitled") : draft.store).font(.headline)
+                    Text(draft.amount.map { (draft.isIncome ? "+" : "") + Money.format($0) } ?? String(localized: "Check amount"))
                         .font(.subheadline)
-                        .foregroundStyle(.secondary)
+                        .foregroundStyle(draft.isIncome ? AnyShapeStyle(JournalTheme.incomeLight) : AnyShapeStyle(.secondary))
                 }
             }
 
@@ -98,6 +98,11 @@ private struct DraftRow: View {
             }
 
             if draft.include {
+                Picker("Type", selection: $draft.isIncome) {
+                    Text("Expense").tag(false)
+                    Text("Income").tag(true)
+                }
+                .pickerStyle(.segmented)
                 TextField("Store or description", text: $draft.store)
                 HStack {
                     TextField("Amount", text: $draft.amountText)
@@ -105,7 +110,7 @@ private struct DraftRow: View {
                     Text("EUR").foregroundStyle(.secondary)
                 }
                 Picker("Category", selection: $draft.category) {
-                    ForEach(ExpenseCategory.allCases) { item in
+                    ForEach(draft.isIncome ? ExpenseCategory.incomeCases : ExpenseCategory.expenseCases) { item in
                         Label(item.title, systemImage: item.symbol).tag(item)
                     }
                 }
@@ -113,5 +118,8 @@ private struct DraftRow: View {
             }
         }
         .padding(.vertical, 4)
+        .onChange(of: draft.isIncome) { _, income in
+            if draft.category.isIncome != income { draft.category = income ? .salary : .other }
+        }
     }
 }

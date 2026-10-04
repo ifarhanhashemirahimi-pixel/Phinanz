@@ -14,6 +14,7 @@ struct DraftExpense: Identifiable, Equatable {
     var category: ExpenseCategory
     var date: Date
     var note: String
+    var isIncome: Bool
     var include: Bool = true
     var isPossibleDuplicate: Bool = false
     let source: ExpenseSource
@@ -24,6 +25,7 @@ struct DraftExpense: Identifiable, Equatable {
         self.category = ExpenseCategory.parse(parsed.category)
         self.date = Self.combine(date: parsed.date, time: parsed.time, fallback: fallbackDate, calendar: calendar)
         self.note = parsed.note ?? ""
+        self.isIncome = parsed.isIncome
         self.source = source
     }
 
@@ -44,7 +46,8 @@ struct DraftExpense: Identifiable, Equatable {
             category: category,
             date: date,
             note: note.trimmingCharacters(in: .whitespacesAndNewlines),
-            source: source
+            source: source,
+            isIncome: isIncome
         )
     }
 
@@ -54,7 +57,7 @@ struct DraftExpense: Identifiable, Equatable {
     /// Missing date → fallback; date without time → 12:00.
     static func combine(date: String?, time: String?, fallback: Date, calendar: Calendar = .current) -> Date {
         let day = date.flatMap { parseISODate($0, calendar: calendar) }
-        let clock = time.flatMap(parseClock)
+        let clock = time.flatMap { parseClock($0) }
 
         switch (day, clock) {
         case let (day?, clock?):
@@ -91,7 +94,8 @@ enum DuplicateDetector {
         guard let amount = draft.amount else { return false }
         let name = draft.store.trimmingCharacters(in: .whitespacesAndNewlines).lowercased()
         return existing.contains { expense in
-            calendar.isDate(expense.date, inSameDayAs: draft.date)
+            expense.isIncome == draft.isIncome
+                && calendar.isDate(expense.date, inSameDayAs: draft.date)
                 && abs(expense.amount - amount) < 0.005
                 && expense.store.trimmingCharacters(in: .whitespacesAndNewlines).lowercased() == name
         }

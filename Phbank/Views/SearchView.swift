@@ -65,7 +65,8 @@ struct SearchView: View {
                                             .foregroundStyle(.secondary)
                                     }
                                     Spacer()
-                                    Text(Money.format(expense.amount))
+                                    Text(verbatim: (expense.isIncome ? "+" : "") + Money.format(expense.amount))
+                                        .foregroundStyle(expense.isIncome ? JournalTheme.incomeLight : Color.primary)
                                 }
                                 .foregroundStyle(.primary)
                             }

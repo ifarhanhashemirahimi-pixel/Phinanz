@@ -11,10 +11,12 @@ enum SettingsKeys {
     static let geminiModel = "geminiModel"
     /// Keychain account name for the Gemini API key (never stored in UserDefaults).
     static let apiKeyAccount = "geminiAPIKey"
+    static let startingBalance = "startingBalance"
+    static let didOnboard = "didOnboard"
 
-    /// Face ID / passcode lock is on unless the user turned it off.
+    /// Face ID / passcode lock; offered during onboarding, off until the user turns it on.
     static var lockEnabledValue: Bool {
-        UserDefaults.standard.object(forKey: lockEnabled) as? Bool ?? true
+        UserDefaults.standard.object(forKey: lockEnabled) as? Bool ?? false
     }
 }
 

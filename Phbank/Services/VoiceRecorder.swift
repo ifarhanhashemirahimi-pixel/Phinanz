@@ -11,7 +11,7 @@ import Observation
 @Observable
 final class VoiceRecorder {
     static let maxDuration: TimeInterval = 60
-    static let idleMessage = "Tap record and say what you spent, e.g. “Rewe, 23 euros, groceries, yesterday”."
+    static var idleMessage: String { String(localized: "Tap record and say what you spent, e.g. “Rewe, 23 euros, groceries, yesterday”.") }
 
     var recordingURL: URL?
     var isRecording = false
@@ -28,7 +28,7 @@ final class VoiceRecorder {
         discard()
         let granted = await AVAudioApplication.requestRecordPermission()
         guard granted else {
-            statusMessage = "Microphone access is off. Turn it on in Settings → Privacy → Microphone."
+            statusMessage = String(localized: "Microphone access is off. Turn it on in Settings → Privacy → Microphone.")
             return
         }
 
@@ -49,13 +49,13 @@ final class VoiceRecorder {
             ]
             let recorder = try AVAudioRecorder(url: url, settings: settings)
             guard recorder.record() else {
-                statusMessage = "Recording could not start."
+                statusMessage = String(localized: "Recording could not start.")
                 return
             }
             self.recorder = recorder
             recordingURL = url
             isRecording = true
-            statusMessage = "Recording… tap again to finish (max. \(Int(Self.maxDuration)) s)."
+            statusMessage = String(localized: "Recording… tap again to finish (max. \(Int(Self.maxDuration)) s).")
 
             autoStop = Task { [weak self] in
                 try? await Task.sleep(for: .seconds(Self.maxDuration))
@@ -63,7 +63,7 @@ final class VoiceRecorder {
                 self?.stop()
             }
         } catch {
-            statusMessage = "Recording failed: \(error.localizedDescription)"
+            statusMessage = String(localized: "Recording failed: \(error.localizedDescription)")
         }
     }
 
@@ -75,7 +75,7 @@ final class VoiceRecorder {
         isRecording = false
         try? AVAudioSession.sharedInstance().setActive(false)
         if recordingURL != nil {
-            statusMessage = "Recording ready. Tap “Analyse with Gemini”."
+            statusMessage = String(localized: "Recording ready. Tap “Analyse with Gemini”.")
         }
     }
 

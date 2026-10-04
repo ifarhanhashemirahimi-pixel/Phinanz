@@ -5,6 +5,7 @@
 
 import SwiftUI
 import SwiftData
+import UIKit
 
 struct SettingsView: View {
     @Environment(\.dismiss) private var dismiss
@@ -13,9 +14,13 @@ struct SettingsView: View {
     let expenses: [Expense]
     let year: Int
 
-    @AppStorage(SettingsKeys.lockEnabled) private var lockEnabled = true
+    @AppStorage(SettingsKeys.lockEnabled) private var lockEnabled = false
     @AppStorage(SettingsKeys.aiConsent) private var aiConsent = false
     @AppStorage(SettingsKeys.geminiModel) private var model = GeminiService.defaultModel
+    @AppStorage(SettingsKeys.startingBalance) private var startingBalance = 0.0
+
+    @State private var balanceText = ""
+    @FocusState private var balanceFocused: Bool
 
     @State private var apiKeyInput = ""
     @State private var hasStoredKey = !(KeychainStore.get(SettingsKeys.apiKeyAccount) ?? "").isEmpty
@@ -36,7 +41,7 @@ struct SettingsView: View {
                 if newValue {
                     // Confirm the user can actually unlock before turning the lock on.
                     Task {
-                        if await AppLock.authenticate(reason: "Turn on the PHINANZ lock") {
+                        if await AppLock.authenticate(reason: String(localized: "Turn on the PHINANZ lock")) {
                             lockEnabled = true
                         }
                     }
@@ -50,8 +55,44 @@ struct SettingsView: View {
     var body: some View {
         NavigationStack {
             Form {
-                Section("Preferences") {
+                Section {
                     LabeledContent("Currency", value: "EUR (€)")
+                    HStack {
+                        Text("Starting balance")
+                        Spacer()
+                        TextField("0,00", text: $balanceText)
+                            .keyboardType(.numbersAndPunctuation)
+                            .multilineTextAlignment(.trailing)
+                            .frame(maxWidth: 140)
+                            .focused($balanceFocused)
+                            .onSubmit(saveBalance)
+                        Text(verbatim: "€").foregroundStyle(.secondary)
+                    }
+                    Button {
+                        if let url = URL(string: UIApplication.openSettingsURLString) {
+                            UIApplication.shared.open(url)
+                        }
+                    } label: {
+                        LabeledContent("Language", value: Locale.current.localizedString(forLanguageCode: Locale.current.language.languageCode?.identifier ?? "en") ?? "")
+                    }
+                    .foregroundStyle(.primary)
+                } header: {
+                    Text("Preferences")
+                } footer: {
+                    Text("The starting balance is what was in your account before your first entry. Change the language in the iOS Settings app (English, Deutsch, فارسی).")
+                }
+
+                Section("Planning") {
+                    NavigationLink {
+                        BudgetsView()
+                    } label: {
+                        Label("Monthly budgets", systemImage: "gauge.with.dots.needle.33percent")
+                    }
+                    NavigationLink {
+                        RecurringListView()
+                    } label: {
+                        Label("Recurring payments", systemImage: "arrow.triangle.2.circlepath")
+                    }
                 }
 
                 Section {
@@ -62,9 +103,11 @@ struct SettingsView: View {
                 } header: {
                     Text("Security")
                 } footer: {
-                    Text(lockAvailable
-                         ? "Locks the journal whenever you leave the app. Uses Face ID or Touch ID, with your device passcode as backup."
-                         : "Set a device passcode in the iOS Settings app to use the lock.")
+                    if lockAvailable {
+                        Text("Locks the journal whenever you leave the app. Uses Face ID or Touch ID, with your device passcode as backup.")
+                    } else {
+                        Text("Set a device passcode in the iOS Settings app to use the lock.")
+                    }
                 }
 
                 aiSection
@@ -97,6 +140,9 @@ struct SettingsView: View {
                     LabeledContent("Version", value: appVersion)
                 }
             }
+            .onAppear { balanceText = startingBalance == 0 ? "" : Money.input(startingBalance) }
+            .onChange(of: balanceFocused) { _, focused in if !focused { saveBalance() } }
+            .onDisappear(perform: saveBalance)
             .navigationTitle("Settings")
             .navigationBarTitleDisplayMode(.inline)
             .toolbar {
@@ -162,6 +208,20 @@ struct SettingsView: View {
 
     // MARK: Actions
 
+    private func saveBalance() {
+        let trimmed = balanceText.trimmingCharacters(in: .whitespacesAndNewlines)
+        if trimmed.isEmpty {
+            startingBalance = 0
+            return
+        }
+        // Allow a negative starting balance (overdraft), e.g. "-120,50".
+        let negative = trimmed.hasPrefix("-") || trimmed.hasPrefix("−")
+        let digits = negative ? String(trimmed.dropFirst()) : trimmed
+        if let value = Money.parse(digits) {
+            startingBalance = negative ? -value : value
+        }
+    }
+
     private func saveKey() {
         let key = apiKeyInput.trimmingCharacters(in: .whitespacesAndNewlines)
         if KeychainStore.set(key, for: SettingsKeys.apiKeyAccount) {
@@ -169,7 +229,7 @@ struct SettingsView: View {
             keyError = nil
             hasStoredKey = true
         } else {
-            keyError = "The key could not be saved to the Keychain."
+            keyError = String(localized: "The key could not be saved to the Keychain.")
         }
     }
 
@@ -179,7 +239,7 @@ struct SettingsView: View {
             exportError = nil
         } catch {
             exportURL = nil
-            exportError = "Export failed: \(error.localizedDescription)"
+            exportError = String(localized: "Export failed: \(error.localizedDescription)")
         }
     }
 

@@ -33,7 +33,7 @@ final class AppLock {
         guard isLocked, !isAuthenticating else { return }
         isAuthenticating = true
         defer { isAuthenticating = false }
-        if await Self.authenticate(reason: "Unlock your PHINANZ journal") {
+        if await Self.authenticate(reason: String(localized: "Unlock your PHINANZ journal")) {
             isLocked = false
         }
     }

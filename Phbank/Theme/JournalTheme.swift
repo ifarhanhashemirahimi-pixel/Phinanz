@@ -28,6 +28,8 @@ enum JournalTheme {
     static let brown = Color(hex: 0x6B5138)   // accents on paper
     static let ink = Color(hex: 0x1B1613)     // text on paper
     static let danger = Color(hex: 0xB33A2B)
+    static let incomeInk = Color(hex: 0x2F6B3A)   // income on paper
+    static let incomeLight = Color(hex: 0x7CC08A) // income on dark
 
     // Typography (dual typeface: classic for structure, handwriting for entries)
     static let fontClassic = "Optima-Regular"
@@ -61,6 +63,10 @@ extension ExpenseCategory {
         case .software: Color(hex: 0x5E6AA8)
         case .travel: Color(hex: 0x3F8FB0)
         case .other: Color(hex: 0x8C8479)
+        case .salary: Color(hex: 0x4F9A5E)
+        case .freelance: Color(hex: 0x6FA86A)
+        case .refund: Color(hex: 0x88B07A)
+        case .otherIncome: Color(hex: 0x9DBF8E)
         }
     }
 }

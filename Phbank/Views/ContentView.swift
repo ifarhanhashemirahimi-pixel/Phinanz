@@ -28,7 +28,13 @@ enum ActiveSheet: Identifiable {
 
 struct ContentView: View {
     @Environment(AppLock.self) private var lock: AppLock?
+    @Environment(\.modelContext) private var context
+    @Environment(\.scenePhase) private var scenePhase
     @Query(sort: \Expense.date) private var expenses: [Expense]
+    @Query private var budgets: [CategoryBudget]
+    @AppStorage(SettingsKeys.startingBalance) private var startingBalance = 0.0
+    @AppStorage(SettingsKeys.didOnboard) private var didOnboard = false
+    @State private var showOnboarding = false
 
     @State private var year = Calendar.current.component(.year, from: Date())
     @State private var selectedDayIndex: Int?
@@ -85,6 +91,24 @@ struct ContentView: View {
             if selectedDayIndex == nil {
                 selectedDayIndex = YearCalendar.index(of: Date(), in: year, calendar: calendar)
             }
+            RecurringScheduler.run(in: context)
+            if !didOnboard && !AppEnvironment.isUITest { showOnboarding = true }
+        }
+        .task(id: widgetKey) {
+            WidgetBridge.publish(WidgetBridge.makeSnapshot(
+                entries: expenses,
+                budgets: budgets,
+                startingBalance: startingBalance
+            ))
+        }
+        .onChange(of: scenePhase) { _, phase in
+            if phase == .active { RecurringScheduler.run(in: context) }
+        }
+        .fullScreenCover(isPresented: $showOnboarding) {
+            OnboardingView {
+                didOnboard = true
+                showOnboarding = false
+            }
         }
     }
 
@@ -115,9 +139,9 @@ struct ContentView: View {
     private var yearHeader: some View {
         HStack(spacing: 18) {
             Button { changeYear(by: -1) } label: {
-                Image(systemName: "chevron.left").frame(width: 44, height: 44)
+                Image(systemName: "chevron.backward").frame(width: 44, height: 44)
             }
-            .accessibilityLabel("Previous year")
+            .accessibilityLabel(Text("Previous year"))
 
             Text(String(year))
                 .font(JournalTheme.classicBold(18, relativeTo: .headline))
@@ -125,12 +149,18 @@ struct ContentView: View {
                 .accessibilityAddTraits(.isHeader)
 
             Button { changeYear(by: 1) } label: {
-                Image(systemName: "chevron.right").frame(width: 44, height: 44)
+                Image(systemName: "chevron.forward").frame(width: 44, height: 44)
             }
-            .accessibilityLabel("Next year")
+            .accessibilityLabel(Text("Next year"))
         }
         .foregroundStyle(JournalTheme.gold)
         .frame(maxWidth: .infinity)
+    }
+
+    /// Changes whenever the numbers shown in the widget could change.
+    private var widgetKey: String {
+        let day = calendar.startOfDay(for: Date()).timeIntervalSince1970
+        return "\(expenses.count)|\(ExpenseStats.net(expenses))|\(ExpenseStats.total(expenses))|\(budgets.count)|\(startingBalance)|\(day)"
     }
 
     // MARK: Navigation helpers
@@ -191,7 +221,7 @@ struct ContentView: View {
 
 #Preview {
     let container = try! ModelContainer(
-        for: Expense.self,
+        for: Schema(AppSchema.models),
         configurations: ModelConfiguration(isStoredInMemoryOnly: true, cloudKitDatabase: .none)
     )
     SampleData.seed(into: container.mainContext)

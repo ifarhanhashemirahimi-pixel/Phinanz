@@ -169,8 +169,8 @@ struct CSVExporterTests {
         let expense = Expense(store: "Rewe", amount: 45.8, category: .groceries, date: utcDate(2026, 10, 3, 18, 45))
         let csv = CSVExporter.csv(for: [expense], calendar: utc)
         let lines = csv.split(separator: "\r\n").map(String.init)
-        #expect(lines[0] == "Date;Time;Store;Category;Amount (EUR);Note;Source")
-        #expect(lines[1] == "2026-10-03;18:45;Rewe;Groceries;45,80;;Manual")
+        #expect(lines[0] == "Date;Time;Type;Store;Category;Amount (EUR);Note;Source")
+        #expect(lines[1] == "2026-10-03;18:45;Expense;Rewe;Groceries;45,80;;Manual")
     }
 
     @Test func quotesSeparatorsAndNeutralisesFormulas() {

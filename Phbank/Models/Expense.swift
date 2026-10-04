@@ -2,29 +2,46 @@
 //  Expense.swift
 //  Phbank
 //
-//  Persisted money-out entry shown on a page of the yearly journal.
+//  A single journal entry: money out (expense) or money in (income).
 //
 
 import Foundation
 import SwiftData
 
 enum ExpenseCategory: String, CaseIterable, Codable, Identifiable {
+    // Spending
     case groceries, food, transport, housing, entertainment, health, shopping, software, travel, other
+    // Income
+    case salary, freelance, refund, otherIncome
 
     var id: String { rawValue }
 
+    var isIncome: Bool {
+        switch self {
+        case .salary, .freelance, .refund, .otherIncome: true
+        default: false
+        }
+    }
+
+    static var expenseCases: [ExpenseCategory] { allCases.filter { !$0.isIncome } }
+    static var incomeCases: [ExpenseCategory] { allCases.filter(\.isIncome) }
+
     var title: String {
         switch self {
-        case .groceries: "Groceries"
-        case .food: "Food & Drink"
-        case .transport: "Transport"
-        case .housing: "Housing"
-        case .entertainment: "Entertainment"
-        case .health: "Health"
-        case .shopping: "Shopping"
-        case .software: "Software"
-        case .travel: "Travel"
-        case .other: "Other"
+        case .groceries: String(localized: "Groceries")
+        case .food: String(localized: "Food & Drink")
+        case .transport: String(localized: "Transport")
+        case .housing: String(localized: "Housing")
+        case .entertainment: String(localized: "Entertainment")
+        case .health: String(localized: "Health")
+        case .shopping: String(localized: "Shopping")
+        case .software: String(localized: "Software")
+        case .travel: String(localized: "Travel")
+        case .other: String(localized: "Other")
+        case .salary: String(localized: "Salary")
+        case .freelance: String(localized: "Side income")
+        case .refund: String(localized: "Refund")
+        case .otherIncome: String(localized: "Other income")
         }
     }
 
@@ -40,13 +57,17 @@ enum ExpenseCategory: String, CaseIterable, Codable, Identifiable {
         case .software: "laptopcomputer"
         case .travel: "airplane"
         case .other: "ellipsis.circle"
+        case .salary: "banknote"
+        case .freelance: "briefcase"
+        case .refund: "arrow.uturn.backward.circle"
+        case .otherIncome: "plus.circle"
         }
     }
 
     /// Lenient mapping used for AI output and legacy data. Unknown labels become `.other`.
     static func parse(_ label: String) -> ExpenseCategory {
         let key = label.trimmingCharacters(in: .whitespacesAndNewlines).lowercased()
-        if let exact = ExpenseCategory(rawValue: key) { return exact }
+        if let exact = allCases.first(where: { $0.rawValue.lowercased() == key }) { return exact }
         let aliases: [String: ExpenseCategory] = [
             "grocery": .groceries, "supermarket": .groceries,
             "restaurant": .food, "coffee": .food, "dining": .food, "drink": .food, "food & drink": .food,
@@ -55,21 +76,24 @@ enum ExpenseCategory: String, CaseIterable, Codable, Identifiable {
             "subscription": .entertainment, "streaming": .entertainment,
             "pharmacy": .health, "medical": .health,
             "clothing": .shopping, "electronics": .shopping,
-            "app": .software
+            "app": .software,
+            "income": .otherIncome, "other income": .otherIncome, "wage": .salary, "gehalt": .salary,
+            "side income": .freelance, "bonus": .otherIncome
         ]
         return aliases[key] ?? .other
     }
 }
 
 enum ExpenseSource: String, Codable {
-    case manual, voice, receipt, statement
+    case manual, voice, receipt, statement, recurring
 
     var title: String {
         switch self {
-        case .manual: "Manual"
-        case .voice: "Voice note"
-        case .receipt: "Receipt scan"
-        case .statement: "Bank statement"
+        case .manual: String(localized: "Manual")
+        case .voice: String(localized: "Voice note")
+        case .receipt: String(localized: "Receipt scan")
+        case .statement: String(localized: "Bank statement")
+        case .recurring: String(localized: "Recurring payment")
         }
     }
 }
@@ -77,12 +101,13 @@ enum ExpenseSource: String, Codable {
 @Model
 final class Expense {
     var store: String = ""
-    /// Positive number of euros spent.
+    /// Always a positive number of euros; `isIncome` decides the direction.
     var amount: Double = 0
     var categoryRaw: String = ExpenseCategory.other.rawValue
     var date: Date = Date()
     var note: String = ""
     var sourceRaw: String = ExpenseSource.manual.rawValue
+    var isIncome: Bool = false
 
     init(
         store: String,
@@ -90,7 +115,8 @@ final class Expense {
         category: ExpenseCategory = .other,
         date: Date = Date(),
         note: String = "",
-        source: ExpenseSource = .manual
+        source: ExpenseSource = .manual,
+        isIncome: Bool = false
     ) {
         self.store = store
         self.amount = amount
@@ -98,6 +124,7 @@ final class Expense {
         self.date = date
         self.note = note
         self.sourceRaw = source.rawValue
+        self.isIncome = isIncome
     }
 
     var category: ExpenseCategory {
@@ -109,4 +136,7 @@ final class Expense {
         get { ExpenseSource(rawValue: sourceRaw) ?? .manual }
         set { sourceRaw = newValue.rawValue }
     }
+
+    /// Positive for income, negative for spending.
+    var signedAmount: Double { isIncome ? amount : -amount }
 }

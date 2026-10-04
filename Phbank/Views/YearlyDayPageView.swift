@@ -16,14 +16,14 @@ struct YearlyDayPageView: View {
 
     private static let titleFormatter: DateFormatter = {
         let formatter = DateFormatter()
-        formatter.locale = Locale(identifier: "en_US")
-        formatter.dateFormat = "yy.MMMM.dd" // e.g. 26.October.04
+        formatter.dateFormat = "yy.MMMM.dd" // e.g. 26.October.04, month name in the app language
         return formatter
     }()
 
     private let lineHeight: CGFloat = 40
 
-    private var total: Double { ExpenseStats.total(expenses) }
+    private var spent: Double { ExpenseStats.spending(expenses) }
+    private var earned: Double { ExpenseStats.income(expenses) }
 
     /// Keeps the ruled-paper look on quiet days.
     private var emptyLineCount: Int { max(0, 12 - expenses.count) }
@@ -62,7 +62,7 @@ struct YearlyDayPageView: View {
                 Text(Self.titleFormatter.string(from: date))
                     .font(JournalTheme.classic(26, relativeTo: .title2))
                     .foregroundStyle(JournalTheme.ink)
-                    .minimumScaleFactor(0.7)
+                    .minimumScaleFactor(0.6)
                     .lineLimit(1)
                     .accessibilityLabel(date.formatted(date: .complete, time: .omitted))
                     .accessibilityAddTraits(.isHeader)
@@ -71,7 +71,7 @@ struct YearlyDayPageView: View {
                     Circle()
                         .fill(JournalTheme.gold)
                         .frame(width: 8, height: 8)
-                        .accessibilityLabel("Today")
+                        .accessibilityLabel(Text("Today"))
                 }
             }
             Spacer(minLength: 12)
@@ -80,11 +80,17 @@ struct YearlyDayPageView: View {
                     .font(JournalTheme.classic(10, relativeTo: .caption2))
                     .tracking(1)
                     .foregroundStyle(JournalTheme.brown)
-                Text(Money.format(total))
+                Text(Money.format(spent))
                     .font(JournalTheme.classicBold(20, relativeTo: .title3))
                     .foregroundStyle(JournalTheme.ink)
-                    .minimumScaleFactor(0.7)
+                    .minimumScaleFactor(0.6)
                     .lineLimit(1)
+                if earned > 0 {
+                    Text(verbatim: "+" + Money.format(earned))
+                        .font(JournalTheme.classic(13, relativeTo: .footnote))
+                        .foregroundStyle(JournalTheme.incomeInk)
+                        .accessibilityLabel(Text("Income \(Money.format(earned))"))
+                }
             }
             .accessibilityElement(children: .combine)
         }
@@ -106,19 +112,21 @@ struct YearlyDayPageView: View {
     }
 
     private func row(_ expense: Expense) -> some View {
-        Button {
+        let time = expense.date.formatted(date: .omitted, time: .shortened)
+        let amountColor = expense.isIncome ? JournalTheme.incomeInk : JournalTheme.ink
+        return Button {
             onEdit(expense)
         } label: {
             VStack(spacing: 0) {
                 HStack(alignment: .firstTextBaseline, spacing: 10) {
-                    Text(expense.date.formatted(date: .omitted, time: .shortened))
+                    Text(time)
                         .font(JournalTheme.handwriting(15, relativeTo: .footnote))
                         .foregroundStyle(JournalTheme.brown)
                         .frame(minWidth: 50, alignment: .leading)
 
-                    Image(systemName: expense.category.symbol)
+                    Image(systemName: expense.source == .recurring ? "arrow.triangle.2.circlepath" : expense.category.symbol)
                         .font(.footnote)
-                        .foregroundStyle(JournalTheme.brown)
+                        .foregroundStyle(expense.isIncome ? JournalTheme.incomeInk : JournalTheme.brown)
                         .accessibilityHidden(true)
 
                     Text(expense.store)
@@ -128,9 +136,9 @@ struct YearlyDayPageView: View {
 
                     Spacer(minLength: 8)
 
-                    Text(Money.plain(expense.amount))
+                    Text((expense.isIncome ? "+" : "") + Money.number(expense.amount))
                         .font(JournalTheme.handwriting(18))
-                        .foregroundStyle(JournalTheme.ink)
+                        .foregroundStyle(amountColor)
                 }
                 .frame(minHeight: lineHeight - 0.5)
                 ruledLine
@@ -138,8 +146,16 @@ struct YearlyDayPageView: View {
             .contentShape(Rectangle())
         }
         .buttonStyle(.plain)
-        .accessibilityLabel("\(expense.store), \(Money.format(expense.amount)), \(expense.category.title), \(expense.date.formatted(date: .omitted, time: .shortened))")
-        .accessibilityHint("Opens the entry for editing")
+        .accessibilityLabel(accessibilityText(for: expense, time: time))
+        .accessibilityHint(Text("Opens the entry for editing"))
+    }
+
+    private func accessibilityText(for expense: Expense, time: String) -> Text {
+        let amount = Money.format(expense.amount)
+        if expense.isIncome {
+            return Text("Income: \(expense.store), \(amount), \(expense.category.title), \(time)")
+        }
+        return Text(verbatim: "\(expense.store), \(amount), \(expense.category.title), \(time)")
     }
 
     private var addRow: some View {
@@ -158,7 +174,7 @@ struct YearlyDayPageView: View {
             .contentShape(Rectangle())
         }
         .buttonStyle(.plain)
-        .accessibilityLabel("Add entry for this day")
+        .accessibilityLabel(Text("Add entry for this day"))
         .accessibilityIdentifier("add-entry")
     }
 }

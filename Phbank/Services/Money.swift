@@ -21,6 +21,27 @@ enum Money {
         value.formatted(.number.precision(.fractionLength(2)).grouping(.never))
     }
 
+    /// Localised two-decimals number without currency, e.g. "12,50" or "۱۲٫۵۰".
+    static func number(_ value: Double) -> String {
+        value.formatted(.number.precision(.fractionLength(2)))
+    }
+
+    /// Converts Persian/Arabic-Indic digits and separators to ASCII so the
+    /// Persian keyboard works in amount fields.
+    static func normalizeDigits(_ text: String) -> String {
+        var result = ""
+        for scalar in text.unicodeScalars {
+            switch scalar.value {
+            case 0x06F0...0x06F9: result.append(Character(UnicodeScalar(scalar.value - 0x06F0 + 48)!))
+            case 0x0660...0x0669: result.append(Character(UnicodeScalar(scalar.value - 0x0660 + 48)!))
+            case 0x066B: result.append(",")   // Arabic decimal separator
+            case 0x066C: result.append(".")   // Arabic thousands separator
+            default: result.unicodeScalars.append(scalar)
+            }
+        }
+        return result
+    }
+
     static func roundCents(_ value: Double) -> Double {
         (value * 100).rounded() / 100
     }
@@ -28,7 +49,7 @@ enum Money {
     /// Parses user input such as "12,50", "12.50", "1.234,56", "1,234.56" or "€ 9".
     /// A single "." or "," is always treated as the decimal separator.
     static func parse(_ text: String) -> Double? {
-        var s = text
+        var s = normalizeDigits(text)
             .trimmingCharacters(in: .whitespacesAndNewlines)
             .replacingOccurrences(of: "€", with: "")
             .replacingOccurrences(of: "EUR", with: "", options: .caseInsensitive)

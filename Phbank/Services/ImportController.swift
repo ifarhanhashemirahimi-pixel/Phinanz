@@ -47,7 +47,7 @@ final class ImportController {
     func processVoice(url: URL, fallbackDate: Date) async {
         defer { try? FileManager.default.removeItem(at: url) } // recordings never stay on disk
         guard let data = try? Data(contentsOf: url) else {
-            phase = .failed("The recording could not be read.")
+            phase = .failed(String(localized: "The recording could not be read."))
             return
         }
         await process(kind: .voice, attachment: GeminiAttachment(mimeType: "audio/wav", data: data), fallbackDate: fallbackDate)
@@ -55,7 +55,7 @@ final class ImportController {
 
     func processImage(_ image: UIImage, fallbackDate: Date) async {
         guard let data = Self.jpegData(from: image) else {
-            phase = .failed("The image could not be prepared.")
+            phase = .failed(String(localized: "The image could not be prepared."))
             return
         }
         await process(kind: .receipt, attachment: GeminiAttachment(mimeType: "image/jpeg", data: data), fallbackDate: fallbackDate)
@@ -65,7 +65,7 @@ final class ImportController {
         let scoped = url.startAccessingSecurityScopedResource()
         defer { if scoped { url.stopAccessingSecurityScopedResource() } }
         guard let data = try? Data(contentsOf: url) else {
-            phase = .failed("The PDF could not be read.")
+            phase = .failed(String(localized: "The PDF could not be read."))
             return
         }
         await process(kind: .statement, attachment: GeminiAttachment(mimeType: "application/pdf", data: data), fallbackDate: fallbackDate)
@@ -87,7 +87,7 @@ final class ImportController {
             let service = GeminiService(apiKey: apiKey, model: model)
             let parsed = try await service.extractExpenses(kind: kind, attachment: attachment)
             guard !parsed.isEmpty else {
-                phase = .failed("No expenses were found in this \(kind.label).")
+                phase = .failed(String(localized: "No entries were found in this \(kind.label)."))
                 return
             }
             drafts = parsed.map { DraftExpense(parsed: $0, source: kind.source, fallbackDate: fallbackDate) }

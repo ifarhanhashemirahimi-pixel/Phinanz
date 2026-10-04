@@ -9,7 +9,13 @@
 import Foundation
 
 enum CSVExporter {
-    static let header = ["Date", "Time", "Store", "Category", "Amount (EUR)", "Note", "Source"]
+    static var header: [String] {
+        [
+            String(localized: "Date"), String(localized: "Time"), String(localized: "Type"),
+            String(localized: "Store"), String(localized: "Category"), String(localized: "Amount (EUR)"),
+            String(localized: "Note"), String(localized: "Source")
+        ]
+    }
 
     static func csv(for expenses: [Expense], calendar: Calendar = .current) -> String {
         let dateFormatter = DateFormatter()
@@ -29,13 +35,14 @@ enum CSVExporter {
             let fields = [
                 dateFormatter.string(from: expense.date),
                 timeFormatter.string(from: expense.date),
+                expense.isIncome ? String(localized: "Income") : String(localized: "Expense"),
                 expense.store,
                 expense.category.title,
                 Money.plain(expense.amount).replacingOccurrences(of: ".", with: ","),
                 expense.note,
                 expense.source.title
             ]
-            lines.append(fields.map(escape).joined(separator: ";"))
+            lines.append(fields.map { escape($0) }.joined(separator: ";"))
         }
         return lines.joined(separator: "\r\n") + "\r\n"
     }
