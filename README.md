@@ -6,7 +6,7 @@ A personal finance journal for iPhone, built around the idea of a leather notebo
 
 | Area | Features |
 | --- | --- |
-| Journal | Lazy-loaded 365/366-page yearly pager, ruled notebook pages, daily total, year switcher, jump to today |
+| Journal | Week strip + lazily loaded page per day of the year, daily total with category bar, jump to today or any date |
 | Entries | Expenses **and income**, add / edit / delete (store, amount, category, date & time, note), locale-aware amount input (`12,50`, `1.234,56`, Persian digits `۱۲٫۵۰`) |
 | Balance | Starting balance + all income − all spending = current balance |
 | Budgets | Monthly limit per category, progress bars, warning at 80 % and when over budget |
@@ -54,15 +54,16 @@ PhbankUITests/             XCUITest smoke + add-entry flow
 docs/                      ARCHITECTURE.md, TEST_PLAN.md, RELEASE_CHECKLIST.md
 ```
 
-## Design system
+## Design
 
-| Token | Value | Use |
-| --- | --- | --- |
-| SHELL | `#121010` | Leather cover, app background |
-| IVORY | `#FAF7F2` | Paper pages |
-| GOLD | `#B08C3D` | Accents on dark, tint in sheets |
-| BROWN | `#6B5138` | Accents on paper |
-| Typefaces | Optima (structure) + Noteworthy Light (entries) | |
+PHINANZ follows Apple's Human Interface Guidelines so it feels like a built-in iPhone app:
+
+- **Navigation:** standard tab bar (Journal, Summary, Plan, Search) with Liquid Glass on iOS 26; Settings from the toolbar.
+- **Journal:** a week strip like Calendar, one page per day (swipe between days), entries in an inset-grouped list with swipe-to-delete and context menus; a floating "Today" button.
+- **Typography:** SF Pro, with SF Pro Rounded for money amounts (like Wallet and Health); full Dynamic Type.
+- **Colour:** system accent blue, semantic system colours, automatic light and dark mode; each category has a Settings-style icon (white symbol on a coloured rounded square).
+- **Components:** native Charts, ContentUnavailableView empty states, sheets with detents, haptics on selection and save, Voice-Memos-style record button.
+- **App icon:** light, dark and tinted variants.
 
 ## Known limitations
 
