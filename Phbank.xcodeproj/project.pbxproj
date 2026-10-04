@@ -6,6 +6,10 @@
 	objectVersion = 77;
 	objects = {
 
+/* Begin PBXBuildFile section */
+		FA000000000000000000000C /* PhinanzWidgetExtension.appex in Embed Foundation Extensions */ = {isa = PBXBuildFile; fileRef = FA0000000000000000000001 /* PhinanzWidgetExtension.appex */; settings = {ATTRIBUTES = (RemoveHeadersOnCopy, ); }; };
+/* End PBXBuildFile section */
+
 /* Begin PBXContainerItemProxy section */
 		D800918A2F8876820032B03A /* PBXContainerItemProxy */ = {
 			isa = PBXContainerItemProxy;
@@ -21,12 +25,34 @@
 			remoteGlobalIDString = D80091772F8876800032B03A;
 			remoteInfo = Phbank;
 		};
+		FA000000000000000000000D /* PBXContainerItemProxy */ = {
+			isa = PBXContainerItemProxy;
+			containerPortal = D80091702F8876800032B03A /* Project object */;
+			proxyType = 1;
+			remoteGlobalIDString = FA0000000000000000000004;
+			remoteInfo = PhinanzWidgetExtension;
+		};
 /* End PBXContainerItemProxy section */
+
+/* Begin PBXCopyFilesBuildPhase section */
+		FA000000000000000000000B /* Embed Foundation Extensions */ = {
+			isa = PBXCopyFilesBuildPhase;
+			buildActionMask = 2147483647;
+			dstPath = "";
+			dstSubfolderSpec = 13;
+			files = (
+				FA000000000000000000000C /* PhinanzWidgetExtension.appex in Embed Foundation Extensions */,
+			);
+			name = "Embed Foundation Extensions";
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+/* End PBXCopyFilesBuildPhase section */
 
 /* Begin PBXFileReference section */
 		D80091782F8876800032B03A /* Phbank.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = Phbank.app; sourceTree = BUILT_PRODUCTS_DIR; };
 		D80091892F8876820032B03A /* PhbankTests.xctest */ = {isa = PBXFileReference; explicitFileType = wrapper.cfbundle; includeInIndex = 0; path = PhbankTests.xctest; sourceTree = BUILT_PRODUCTS_DIR; };
 		D80091932F8876820032B03A /* PhbankUITests.xctest */ = {isa = PBXFileReference; explicitFileType = wrapper.cfbundle; includeInIndex = 0; path = PhbankUITests.xctest; sourceTree = BUILT_PRODUCTS_DIR; };
+		FA0000000000000000000001 /* PhinanzWidgetExtension.appex */ = {isa = PBXFileReference; explicitFileType = "wrapper.app-extension"; includeInIndex = 0; path = PhinanzWidgetExtension.appex; sourceTree = BUILT_PRODUCTS_DIR; };
 /* End PBXFileReference section */
 
 /* Begin PBXFileSystemSynchronizedBuildFileExceptionSet section */
@@ -36,6 +62,13 @@
 				Info.plist,
 			);
 			target = D80091772F8876800032B03A /* Phbank */;
+		};
+		FA0000000000000000000003 /* Exceptions for "PhinanzWidget" folder in "PhinanzWidgetExtension" target */ = {
+			isa = PBXFileSystemSynchronizedBuildFileExceptionSet;
+			membershipExceptions = (
+				Info.plist,
+			);
+			target = FA0000000000000000000004 /* PhinanzWidgetExtension */;
 		};
 /* End PBXFileSystemSynchronizedBuildFileExceptionSet section */
 
@@ -56,6 +89,14 @@
 		D80091962F8876820032B03A /* PhbankUITests */ = {
 			isa = PBXFileSystemSynchronizedRootGroup;
 			path = PhbankUITests;
+			sourceTree = "<group>";
+		};
+		FA0000000000000000000002 /* PhinanzWidget */ = {
+			isa = PBXFileSystemSynchronizedRootGroup;
+			exceptions = (
+				FA0000000000000000000003 /* Exceptions for "PhinanzWidget" folder in "PhinanzWidgetExtension" target */,
+			);
+			path = PhinanzWidget;
 			sourceTree = "<group>";
 		};
 /* End PBXFileSystemSynchronizedRootGroup section */
@@ -82,6 +123,13 @@
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
+		FA0000000000000000000006 /* Frameworks */ = {
+			isa = PBXFrameworksBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
 /* End PBXFrameworksBuildPhase section */
 
 /* Begin PBXGroup section */
@@ -91,6 +139,7 @@
 				D800917A2F8876800032B03A /* Phbank */,
 				D800918C2F8876820032B03A /* PhbankTests */,
 				D80091962F8876820032B03A /* PhbankUITests */,
+				FA0000000000000000000002 /* PhinanzWidget */,
 				D80091792F8876800032B03A /* Products */,
 			);
 			sourceTree = "<group>";
@@ -101,6 +150,7 @@
 				D80091782F8876800032B03A /* Phbank.app */,
 				D80091892F8876820032B03A /* PhbankTests.xctest */,
 				D80091932F8876820032B03A /* PhbankUITests.xctest */,
+				FA0000000000000000000001 /* PhinanzWidgetExtension.appex */,
 			);
 			name = Products;
 			sourceTree = "<group>";
@@ -115,10 +165,12 @@
 				D80091742F8876800032B03A /* Sources */,
 				D80091752F8876800032B03A /* Frameworks */,
 				D80091762F8876800032B03A /* Resources */,
+				FA000000000000000000000B /* Embed Foundation Extensions */,
 			);
 			buildRules = (
 			);
 			dependencies = (
+				FA000000000000000000000E /* PBXTargetDependency */,
 			);
 			fileSystemSynchronizedGroups = (
 				D800917A2F8876800032B03A /* Phbank */,
@@ -176,6 +228,28 @@
 			productReference = D80091932F8876820032B03A /* PhbankUITests.xctest */;
 			productType = "com.apple.product-type.bundle.ui-testing";
 		};
+		FA0000000000000000000004 /* PhinanzWidgetExtension */ = {
+			isa = PBXNativeTarget;
+			buildConfigurationList = FA0000000000000000000008 /* Build configuration list for PBXNativeTarget "PhinanzWidgetExtension" */;
+			buildPhases = (
+				FA0000000000000000000005 /* Sources */,
+				FA0000000000000000000006 /* Frameworks */,
+				FA0000000000000000000007 /* Resources */,
+			);
+			buildRules = (
+			);
+			dependencies = (
+			);
+			fileSystemSynchronizedGroups = (
+				FA0000000000000000000002 /* PhinanzWidget */,
+			);
+			name = PhinanzWidgetExtension;
+			packageProductDependencies = (
+			);
+			productName = PhinanzWidgetExtension;
+			productReference = FA0000000000000000000001 /* PhinanzWidgetExtension.appex */;
+			productType = "com.apple.product-type.app-extension";
+		};
 /* End PBXNativeTarget section */
 
 /* Begin PBXProject section */
@@ -197,6 +271,9 @@
 						CreatedOnToolsVersion = 26.4;
 						TestTargetID = D80091772F8876800032B03A;
 					};
+					FA0000000000000000000004 = {
+						CreatedOnToolsVersion = 26.4;
+					};
 				};
 			};
 			buildConfigurationList = D80091732F8876800032B03A /* Build configuration list for PBXProject "Phbank" */;
@@ -205,6 +282,8 @@
 			knownRegions = (
 				en,
 				Base,
+				de,
+				fa,
 			);
 			mainGroup = D800916F2F8876800032B03A;
 			minimizedProjectReferenceProxies = 1;
@@ -216,6 +295,7 @@
 				D80091772F8876800032B03A /* Phbank */,
 				D80091882F8876820032B03A /* PhbankTests */,
 				D80091922F8876820032B03A /* PhbankUITests */,
+				FA0000000000000000000004 /* PhinanzWidgetExtension */,
 			);
 		};
 /* End PBXProject section */
@@ -236,6 +316,13 @@
 			runOnlyForDeploymentPostprocessing = 0;
 		};
 		D80091912F8876820032B03A /* Resources */ = {
+			isa = PBXResourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+		FA0000000000000000000007 /* Resources */ = {
 			isa = PBXResourcesBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
@@ -266,6 +353,13 @@
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
+		FA0000000000000000000005 /* Sources */ = {
+			isa = PBXSourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
 /* End PBXSourcesBuildPhase section */
 
 /* Begin PBXTargetDependency section */
@@ -278,6 +372,11 @@
 			isa = PBXTargetDependency;
 			target = D80091772F8876800032B03A /* Phbank */;
 			targetProxy = D80091942F8876820032B03A /* PBXContainerItemProxy */;
+		};
+		FA000000000000000000000E /* PBXTargetDependency */ = {
+			isa = PBXTargetDependency;
+			target = FA0000000000000000000004 /* PhinanzWidgetExtension */;
+			targetProxy = FA000000000000000000000D /* PBXContainerItemProxy */;
 		};
 /* End PBXTargetDependency section */
 
@@ -557,6 +656,62 @@
 			};
 			name = Release;
 		};
+		FA0000000000000000000009 /* Debug */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				CODE_SIGN_ENTITLEMENTS = PhinanzWidget/PhinanzWidget.entitlements;
+				CODE_SIGN_STYLE = Automatic;
+				CURRENT_PROJECT_VERSION = 1;
+				GENERATE_INFOPLIST_FILE = YES;
+				INFOPLIST_FILE = PhinanzWidget/Info.plist;
+				INFOPLIST_KEY_CFBundleDisplayName = PHINANZ;
+				INFOPLIST_KEY_NSHumanReadableCopyright = "";
+				IPHONEOS_DEPLOYMENT_TARGET = 26.4;
+				LD_RUNPATH_SEARCH_PATHS = (
+					"$(inherited)",
+					"@executable_path/Frameworks",
+					"@executable_path/../../Frameworks",
+				);
+				MARKETING_VERSION = 1.0;
+				PRODUCT_BUNDLE_IDENTIFIER = Farhan.Phbank.PhinanzWidget;
+				PRODUCT_NAME = "$(TARGET_NAME)";
+				SKIP_INSTALL = YES;
+				STRING_CATALOG_GENERATE_SYMBOLS = YES;
+				SWIFT_APPROACHABLE_CONCURRENCY = YES;
+				SWIFT_EMIT_LOC_STRINGS = YES;
+				SWIFT_VERSION = 5.0;
+				TARGETED_DEVICE_FAMILY = "1,2";
+			};
+			name = Debug;
+		};
+		FA000000000000000000000A /* Release */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				CODE_SIGN_ENTITLEMENTS = PhinanzWidget/PhinanzWidget.entitlements;
+				CODE_SIGN_STYLE = Automatic;
+				CURRENT_PROJECT_VERSION = 1;
+				GENERATE_INFOPLIST_FILE = YES;
+				INFOPLIST_FILE = PhinanzWidget/Info.plist;
+				INFOPLIST_KEY_CFBundleDisplayName = PHINANZ;
+				INFOPLIST_KEY_NSHumanReadableCopyright = "";
+				IPHONEOS_DEPLOYMENT_TARGET = 26.4;
+				LD_RUNPATH_SEARCH_PATHS = (
+					"$(inherited)",
+					"@executable_path/Frameworks",
+					"@executable_path/../../Frameworks",
+				);
+				MARKETING_VERSION = 1.0;
+				PRODUCT_BUNDLE_IDENTIFIER = Farhan.Phbank.PhinanzWidget;
+				PRODUCT_NAME = "$(TARGET_NAME)";
+				SKIP_INSTALL = YES;
+				STRING_CATALOG_GENERATE_SYMBOLS = YES;
+				SWIFT_APPROACHABLE_CONCURRENCY = YES;
+				SWIFT_EMIT_LOC_STRINGS = YES;
+				SWIFT_VERSION = 5.0;
+				TARGETED_DEVICE_FAMILY = "1,2";
+			};
+			name = Release;
+		};
 /* End XCBuildConfiguration section */
 
 /* Begin XCConfigurationList section */
@@ -592,6 +747,15 @@
 			buildConfigurations = (
 				D80091A52F8876820032B03A /* Debug */,
 				D80091A62F8876820032B03A /* Release */,
+			);
+			defaultConfigurationIsVisible = 0;
+			defaultConfigurationName = Release;
+		};
+		FA0000000000000000000008 /* Build configuration list for PBXNativeTarget "PhinanzWidgetExtension" */ = {
+			isa = XCConfigurationList;
+			buildConfigurations = (
+				FA0000000000000000000009 /* Debug */,
+				FA000000000000000000000A /* Release */,
 			);
 			defaultConfigurationIsVisible = 0;
 			defaultConfigurationName = Release;

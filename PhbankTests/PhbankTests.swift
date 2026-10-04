@@ -27,7 +27,7 @@ func utcDate(_ year: Int, _ month: Int, _ day: Int, _ hour: Int = 0, _ minute: I
 @MainActor
 func makeContainer() throws -> ModelContainer {
     try ModelContainer(
-        for: Expense.self,
+        for: Schema(AppSchema.models),
         configurations: ModelConfiguration(isStoredInMemoryOnly: true, cloudKitDatabase: .none)
     )
 }
@@ -47,6 +47,12 @@ struct MoneyTests {
     @Test(arguments: ["", "abc", "-5", "1,2,3", "12,5x"])
     func rejectsInvalidInput(input: String) {
         #expect(Money.parse(input) == nil)
+    }
+
+    @Test func acceptsPersianDigits() {
+        #expect(Money.parse("۱۲٫۵۰") == 12.5)
+        #expect(Money.parse("۱٬۲۳۴٫۵۶") == 1234.56)
+        #expect(Money.parse("٣٤") == 34)
     }
 
     @Test func roundsToCents() {
@@ -338,5 +344,154 @@ struct ImageEncodingTests {
         let data = try #require(ImportController.jpegData(from: big, maxDimension: 1000))
         let decoded = try #require(UIImage(data: data))
         #expect(max(decoded.size.width * decoded.scale, decoded.size.height * decoded.scale) <= 1000)
+    }
+}
+
+
+// MARK: - Income & balance
+
+@MainActor
+struct IncomeTests {
+    @Test func separatesSpendingAndIncome() throws {
+        let container = try makeContainer()
+        _ = container
+        let entries = [
+            Expense(store: "Rewe", amount: 40, category: .groceries, date: utcDate(2026, 10, 2)),
+            Expense(store: "Employer", amount: 2000, category: .salary, date: utcDate(2026, 10, 1), isIncome: true),
+            Expense(store: "Miete", amount: 700, category: .housing, date: utcDate(2026, 10, 3))
+        ]
+        #expect(ExpenseStats.spending(entries) == 740)
+        #expect(ExpenseStats.income(entries) == 2000)
+        #expect(ExpenseStats.net(entries) == 1260)
+        #expect(ExpenseStats.byCategory(entries).allSatisfy { !$0.category.isIncome })
+        #expect(ExpenseStats.balance(starting: 100, entries: entries, upTo: utcDate(2026, 10, 2, 23)) == 2060)
+        #expect(ExpenseStats.balance(starting: 100, entries: entries, upTo: utcDate(2026, 12, 1)) == 1360)
+    }
+
+    @Test func incomeCategoriesAreSeparate() {
+        #expect(ExpenseCategory.incomeCases.allSatisfy(\.isIncome))
+        #expect(ExpenseCategory.expenseCases.allSatisfy { !$0.isIncome })
+        #expect(ExpenseCategory.parse("salary") == .salary)
+        #expect(ExpenseCategory.parse("otherIncome") == .otherIncome)
+    }
+
+    @Test func aiIncomeTypeIsRespected() {
+        let parsed = ParsedExpense(store: "Arbeitgeber GmbH", amount: 2100, category: "salary", date: "2026-10-01", time: nil, note: nil, type: "income")
+        let draft = DraftExpense(parsed: parsed, source: .statement, fallbackDate: utcDate(2026, 10, 4), calendar: utc)
+        #expect(draft.isIncome)
+        let expenseByType = ParsedExpense(store: "x", amount: 1, category: "other", date: nil, time: nil, note: nil, type: "income")
+        #expect(expenseByType.isIncome)
+        let plain = ParsedExpense(store: "x", amount: 1, category: "food", date: nil, time: nil, note: nil, type: nil)
+        #expect(!plain.isIncome)
+    }
+}
+
+// MARK: - Budgets
+
+@MainActor
+struct BudgetTests {
+    @Test func levels() {
+        #expect(BudgetCalculator.level(spent: 50, limit: 100) == .ok)
+        #expect(BudgetCalculator.level(spent: 80, limit: 100) == .warning)
+        #expect(BudgetCalculator.level(spent: 100, limit: 100) == .warning)
+        #expect(BudgetCalculator.level(spent: 100.01, limit: 100) == .over)
+        #expect(BudgetCalculator.level(spent: 500, limit: 0) == .ok)
+    }
+
+    @Test func crossingIsReportedOnlyOnce() {
+        #expect(BudgetCalculator.crossedLevel(before: 70, after: 85, limit: 100) == .warning)
+        #expect(BudgetCalculator.crossedLevel(before: 85, after: 90, limit: 100) == nil)
+        #expect(BudgetCalculator.crossedLevel(before: 90, after: 120, limit: 100) == .over)
+        #expect(BudgetCalculator.crossedLevel(before: 10, after: 20, limit: 100) == nil)
+    }
+
+    @Test func statusesUseOnlyThatMonthsSpending() throws {
+        let container = try makeContainer()
+        _ = container
+        let budgets = [CategoryBudget(category: .groceries, monthlyLimit: 300), CategoryBudget(category: .food, monthlyLimit: 0)]
+        let entries = [
+            Expense(store: "Rewe", amount: 120, category: .groceries, date: utcDate(2026, 10, 2)),
+            Expense(store: "Lidl", amount: 150, category: .groceries, date: utcDate(2026, 10, 9)),
+            Expense(store: "Rewe", amount: 999, category: .groceries, date: utcDate(2026, 9, 30)),
+            Expense(store: "Refund", amount: 50, category: .refund, date: utcDate(2026, 10, 3), isIncome: true)
+        ]
+        let october = DateInterval(start: utcDate(2026, 10, 1), end: utcDate(2026, 11, 1))
+        let statuses = BudgetCalculator.statuses(budgets: budgets, entries: entries, in: october)
+        #expect(statuses.count == 1)
+        #expect(statuses[0].spent == 270)
+        #expect(statuses[0].remaining == 30)
+        #expect(statuses[0].level == .warning)
+    }
+}
+
+// MARK: - Recurring payments
+
+@MainActor
+struct RecurringTests {
+    @Test func catchesUpMonthlyAndClampsShortMonths() {
+        let dates = RecurringScheduler.dueDates(
+            start: utcDate(2026, 1, 15), dayOfMonth: 31, lastGenerated: nil,
+            now: utcDate(2026, 4, 10), calendar: utc
+        )
+        #expect(dates == [utcDate(2026, 1, 31, 9), utcDate(2026, 2, 28, 9), utcDate(2026, 3, 31, 9)])
+    }
+
+    @Test func skipsAlreadyGeneratedAndDaysBeforeStart() {
+        let dates = RecurringScheduler.dueDates(
+            start: utcDate(2026, 3, 10), dayOfMonth: 1, lastGenerated: utcDate(2026, 4, 1, 9),
+            now: utcDate(2026, 6, 2), calendar: utc
+        )
+        #expect(dates == [utcDate(2026, 5, 1, 9), utcDate(2026, 6, 1, 9)])
+    }
+
+    @Test func futureStartCreatesNothing() {
+        #expect(RecurringScheduler.dueDates(start: utcDate(2027, 1, 1), dayOfMonth: 5, lastGenerated: nil, now: utcDate(2026, 10, 5), calendar: utc).isEmpty)
+    }
+
+    @Test func catchUpIsCapped() {
+        let dates = RecurringScheduler.dueDates(start: utcDate(2015, 1, 1), dayOfMonth: 1, lastGenerated: nil, now: utcDate(2026, 10, 5), calendar: utc)
+        #expect(dates.count <= RecurringScheduler.maxCatchUpMonths)
+    }
+
+    @Test func runCreatesEntriesOnceAndIsIdempotent() throws {
+        let container = try makeContainer()
+        let context = container.mainContext
+        let payment = RecurringPayment(name: "Miete", amount: 700, category: .housing, dayOfMonth: 1, startDate: utcDate(2026, 8, 1))
+        context.insert(payment)
+        let now = utcDate(2026, 10, 5)
+        #expect(RecurringScheduler.run(in: context, now: now, calendar: utc) == 3)
+        #expect(RecurringScheduler.run(in: context, now: now, calendar: utc) == 0)
+        let entries = try context.fetch(FetchDescriptor<Expense>())
+        #expect(entries.count == 3)
+        #expect(entries.allSatisfy { $0.source == .recurring && !$0.isIncome })
+    }
+}
+
+// MARK: - Widget snapshot
+
+@MainActor
+struct WidgetSnapshotTests {
+    @Test func summarisesTodayMonthAndBalance() throws {
+        let container = try makeContainer()
+        _ = container
+        let now = utcDate(2026, 10, 5, 15)
+        let entries = [
+            Expense(store: "Bäcker", amount: 4, category: .food, date: utcDate(2026, 10, 5, 8)),
+            Expense(store: "Rewe", amount: 30, category: .groceries, date: utcDate(2026, 10, 2, 8)),
+            Expense(store: "Gehalt", amount: 1000, category: .salary, date: utcDate(2026, 10, 1, 8), isIncome: true),
+            Expense(store: "Alt", amount: 50, category: .other, date: utcDate(2026, 9, 20, 8))
+        ]
+        let snapshot = WidgetBridge.makeSnapshot(
+            entries: entries,
+            budgets: [CategoryBudget(category: .food, monthlyLimit: 200)],
+            startingBalance: 10,
+            now: now,
+            calendar: utc
+        )
+        #expect(snapshot.todaySpent == 4)
+        #expect(snapshot.monthSpent == 34)
+        #expect(snapshot.monthIncome == 1000)
+        #expect(snapshot.balance == 926)
+        #expect(snapshot.budgetLimit == 200)
     }
 }

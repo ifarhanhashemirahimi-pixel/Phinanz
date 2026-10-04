@@ -42,7 +42,7 @@ struct LiquidGlassTabBar: View {
 
 struct TabBarButton: View {
     let icon: String
-    let label: String
+    let label: LocalizedStringKey
     let id: String
     let action: () -> Void
 
@@ -55,7 +55,7 @@ struct TabBarButton: View {
                 .contentShape(Rectangle())
         }
         .buttonStyle(.plain)
-        .accessibilityLabel(label)
+        .accessibilityLabel(Text(label))
         .accessibilityIdentifier(id)
     }
 }

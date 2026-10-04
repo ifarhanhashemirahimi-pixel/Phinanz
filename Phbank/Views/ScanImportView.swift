@@ -32,7 +32,7 @@ struct ScanImportView: View {
                 Button { showScanner = true } label: {
                     ScanActionCard(
                         title: "Scan receipt",
-                        subtitle: cameraAvailable ? "Capture with the camera" : "Camera scanning isn't available here",
+                        subtitle: cameraAvailable ? LocalizedStringKey("Capture with the camera") : LocalizedStringKey("Camera scanning isn't available here"),
                         icon: "camera.viewfinder"
                     )
                 }
@@ -88,7 +88,7 @@ struct ScanImportView: View {
                     dismiss()
                     Task { await importer.processPDF(url: url, fallbackDate: date) }
                 case .failure:
-                    message = "The PDF could not be opened."
+                    message = String(localized: "The PDF could not be opened.")
                 }
             }
             .onChange(of: photoItem) { _, item in
@@ -99,7 +99,7 @@ struct ScanImportView: View {
                        let image = UIImage(data: data) {
                         begin(image)
                     } else {
-                        message = "The photo could not be loaded."
+                        message = String(localized: "The photo could not be loaded.")
                     }
                 }
             }
@@ -116,8 +116,8 @@ struct ScanImportView: View {
 }
 
 struct ScanActionCard: View {
-    let title: String
-    let subtitle: String
+    let title: LocalizedStringKey
+    let subtitle: LocalizedStringKey
     let icon: String
 
     var body: some View {
