@@ -136,6 +136,9 @@ struct ExpenseEditorView: View {
                     }
                 }
             }
+            // Swipe down on the form to put the decimal pad away. (A keyboard
+            // toolbar with a spacer made SwiftUI log invalid frame sizes.)
+            .scrollDismissesKeyboard(.interactively)
             .navigationTitle(expense == nil ? Text("New Entry") : Text("Edit Entry"))
             .navigationBarTitleDisplayMode(.inline)
             .toolbar {
@@ -146,10 +149,6 @@ struct ExpenseEditorView: View {
                     Button("Save", action: save)
                         .disabled(!canSave)
                         .accessibilityIdentifier("save-entry")
-                }
-                ToolbarItemGroup(placement: .keyboard) {
-                    Spacer()
-                    Button("Done") { amountFocused = false }
                 }
             }
             .onAppear {
