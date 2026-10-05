@@ -135,19 +135,30 @@ struct CategoryShareBar: View {
 
     var body: some View {
         GeometryReader { proxy in
-            let sum = max(totals.reduce(0) { $0 + $1.total }, 0.0001)
+            let sum = totals.reduce(0) { $0 + max($1.total, 0) }
             let spacing: CGFloat = 2
-            let available = max(0, proxy.size.width - spacing * CGFloat(max(totals.count - 1, 0)))
+            let width = proxy.size.width.isFinite ? proxy.size.width : 0
+            let available = max(0, width - spacing * CGFloat(max(totals.count - 1, 0)))
             HStack(spacing: spacing) {
                 ForEach(totals) { item in
                     Rectangle()
                         .fill(item.category.color)
-                        .frame(width: max(3, available * item.total / sum))
+                        .frame(width: Self.segmentWidth(item.total, of: sum, in: available))
                 }
             }
         }
+        .frame(maxWidth: .infinity)
         .frame(height: height)
         .clipShape(Capsule())
         .accessibilityHidden(true)
+    }
+
+    /// Width of one segment. Always finite and at least 3 pt, so SwiftUI never
+    /// gets a negative or infinite frame while a list row is still measuring.
+    nonisolated static func segmentWidth(_ value: Double, of sum: Double, in available: CGFloat) -> CGFloat {
+        let minimum: CGFloat = 3
+        guard value > 0, sum > 0, sum.isFinite, available.isFinite, available > 0 else { return minimum }
+        let width = available * CGFloat(min(value / sum, 1))
+        return width.isFinite ? max(minimum, width) : minimum
     }
 }

@@ -24,7 +24,7 @@ enum SavingsPlanner {
         let target = max(target, 0)
         let saved = max(saved, 0)
         let remaining = Money.roundCents(max(target - saved, 0))
-        let progress = target > 0 ? min(saved / target, 1) : 0
+        let progress = target > 0 ? min(max(saved / target, 0), 1) : 0
         let reached = target > 0 && remaining == 0
 
         guard let deadline, !reached else {

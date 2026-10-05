@@ -854,6 +854,28 @@ struct SavingsPlannerTests {
         #expect(open.monthlyAmount == nil)
         #expect(open.remaining == 400)
     }
+
+    @Test func progressStaysBetweenZeroAndOne() {
+        #expect(SavingsPlanner.plan(target: 500, saved: -50, deadline: nil, now: utcDate(2026, 10, 5), calendar: utc).progress == 0)
+        #expect(SavingsPlanner.plan(target: 0, saved: 50, deadline: nil, now: utcDate(2026, 10, 5), calendar: utc).progress == 0)
+    }
+}
+
+// MARK: - Layout guards
+
+@MainActor
+struct LayoutGuardTests {
+    @Test func categoryBarSegmentsAreAlwaysFinite() {
+        #expect(CategoryShareBar.segmentWidth(7, of: 7, in: 300) == 300)
+        #expect(CategoryShareBar.segmentWidth(1, of: 4, in: 200) == 50)
+        // A list row measuring with an infinite or empty width must not produce
+        // an invalid frame ("Invalid frame dimension (negative or non-finite)").
+        #expect(CategoryShareBar.segmentWidth(7, of: 7, in: .infinity) == 3)
+        #expect(CategoryShareBar.segmentWidth(7, of: 7, in: .nan) == 3)
+        #expect(CategoryShareBar.segmentWidth(7, of: 0, in: 300) == 3)
+        #expect(CategoryShareBar.segmentWidth(-5, of: 7, in: 300) == 3)
+        #expect(CategoryShareBar.segmentWidth(2, of: 1, in: 100) == 100)
+    }
 }
 
 // MARK: - Monthly report

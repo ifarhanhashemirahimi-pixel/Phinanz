@@ -148,7 +148,7 @@ struct BudgetRow: View {
                     .monospacedDigit()
                     .foregroundStyle(.secondary)
             }
-            ProgressView(value: min(status.ratio, 1))
+            ProgressView(value: min(max(status.ratio, 0), 1))
                 .tint(tint)
             if status.level == .over {
                 Text("Over budget by \(Money.format(-status.remaining))")

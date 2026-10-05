@@ -53,9 +53,15 @@ Coverage goal: 90 %+ of `Services/` and `Models/`, UI covered by flows rather th
 19. **Monthly report**: compare two months, create the PDF, open it in Files.
 20. **iPad**: the tab bar turns into a sidebar; sheets and the editor fit.
 
-## Visual QA with the snapshot renderer
+## Visual QA: screenshots and demo recordings
 
-Debug builds contain `Debug/SnapshotRenderer.swift`. When the folder `snapshots/` next to the Xcode project contains a file named `REQUEST`, running the app in the simulator renders about 20 screens (light, dark, German, Persian, empty and busy days) as PNG files into that folder and writes `log.txt`. Delete `REQUEST` to switch it off; release builds never include the renderer. The folder is ignored by git.
+Debug builds read a few switch files in the `snapshots/` folder next to the project folder (see `Debug/DebugFlags.swift`; release builds contain none of this, and nothing happens while tests run):
+
+| File | Effect on the next Run |
+| --- | --- |
+| `REQUEST` | Renders about 30 screens with showcase data into `snapshots/<language>/` plus a sample `report.pdf`, and writes `log.txt` |
+| `DEMO` | Records a scripted tour through the real app (in-memory showcase data) into `snapshots/demo-<language>.mp4` with `demo-timeline.txt`, then deletes `DEMO` |
+| `LANGUAGE` | `de`, `en`, `fa` or `system`: the app language from the following launch on (applied after rendering and recording) |
 
 ## Example edge cases worth keeping in mind
 
