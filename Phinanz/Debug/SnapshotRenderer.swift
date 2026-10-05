@@ -148,6 +148,28 @@ enum SnapshotRenderer {
         if let found = entries.last(where: { !$0.isIncome && Calendar.current.isDateInToday($0.date) }) ?? sampleEntry {
             list.append(Scenario(name: "36-search-jump-highlight", style: .light, locale: nil, view: AnyView(ContentView(initialTab: .journal, initialDate: found.date, initialHighlight: found.persistentModelID, previewMode: true))))
         }
+        // Monthly recap and tax hints (local text only, no network).
+        let recapMonth = Calendar.current.date(byAdding: .month, value: -1, to: Date()) ?? Date()
+        let recapReport = ReportBuilder.build(month: recapMonth, entries: entries, budgets: budgets)
+        list += [
+            Scenario(name: "37-recap-sheet", style: .light, locale: nil, view: AnyView(MonthRecapSheet(month: recapMonth, expenses: entries, budgets: budgets, allowGemini: false))),
+            Scenario(name: "37b-recap-sheet-dark", style: .dark, locale: nil, view: AnyView(MonthRecapSheet(month: recapMonth, expenses: entries, budgets: budgets, allowGemini: false))),
+            Scenario(name: "38-report-tax", style: .light, locale: nil, view: AnyView(NavigationStack {
+                ScrollView {
+                    VStack(spacing: 16) {
+                        RecapTextCard(report: recapReport, allowGemini: false)
+                        ReportTaxCard(report: recapReport)
+                    }
+                    .padding()
+                }
+                .background(Theme.groupedBackground)
+                .navigationTitle("Monthly Report")
+                .navigationBarTitleDisplayMode(.inline)
+            }))
+        ]
+        if let donation = entries.first(where: { $0.store.contains("UNICEF") }) {
+            list.append(Scenario(name: "39-editor-tax-hint", style: .light, locale: nil, view: AnyView(ExpenseEditorView(expense: donation, defaultDate: donation.date))))
+        }
         if let primary = AccountLedger.primary(accounts) {
             list.append(Scenario(name: "29-account-detail", style: .light, locale: nil, view: AnyView(NavigationStack { AccountDetailView(accountID: primary.id, expenses: entries) })))
         }

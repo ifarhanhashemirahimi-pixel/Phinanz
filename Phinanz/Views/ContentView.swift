@@ -20,6 +20,8 @@ enum ActiveSheet: Identifiable {
     case settings, voice, scan
     case add(Date)
     case edit(Expense)
+    /// The recap of the month that starts at this date.
+    case recap(Date)
 
     var id: String {
         switch self {
@@ -28,6 +30,7 @@ enum ActiveSheet: Identifiable {
         case .scan: "scan"
         case .add(let day): "add-\(day.timeIntervalSince1970)"
         case .edit(let expense): "edit-\(ObjectIdentifier(expense).hashValue)"
+        case .recap(let month): "recap-\(month.timeIntervalSince1970)"
         }
     }
 }
@@ -107,6 +110,7 @@ struct ContentView: View {
             guard !previewMode else { return }
             RecurringScheduler.run(in: context)
             if !didOnboard && !AppEnvironment.isUITest && !AppEnvironment.isDemo { showOnboarding = true }
+            scheduleRecapCheck()
         }
         .task(id: widgetKey) {
             guard !previewMode else { return }
@@ -119,6 +123,7 @@ struct ContentView: View {
         }
         .onChange(of: scenePhase) { _, phase in
             if phase == .active && !previewMode {
+                scheduleRecapCheck()
                 RecurringScheduler.run(in: context)
                 Task { await NotificationScheduler.refresh(context: context) }
             }
@@ -137,7 +142,10 @@ struct ContentView: View {
         }
         .onChange(of: lock?.isLocked ?? false) { _, locked in
             // Links that arrived while the app was locked run after Face ID.
-            if !locked { handlePendingAction() }
+            if !locked {
+                handlePendingAction()
+                scheduleRecapCheck()
+            }
         }
         .fullScreenCover(isPresented: $showOnboarding) {
             OnboardingView {
@@ -185,6 +193,24 @@ struct ContentView: View {
         }
     }
     #endif
+
+    /// On the first launch of a new month: the recap of the month before,
+    /// once, and never on top of something the user is doing.
+    private func scheduleRecapCheck() {
+        guard !previewMode, !AppEnvironment.isUITest, !AppEnvironment.isDemo else { return }
+        Task { @MainActor in
+            try? await Task.sleep(for: .milliseconds(700))
+            let enabled = UserDefaults.standard.object(forKey: SettingsKeys.monthlyRecap) as? Bool ?? true
+            guard enabled, didOnboard, !showOnboarding, !(lock?.isLocked ?? false),
+                  activeSheet == nil, !importer.showReview, importer.phase == .idle,
+                  scenePhase == .active
+            else { return }
+            let lastShown = UserDefaults.standard.string(forKey: SettingsKeys.lastRecapMonth)
+            guard let month = RecapSchedule.monthToShow(now: Date(), lastShownKey: lastShown, entries: expenses) else { return }
+            UserDefaults.standard.set(RecapSchedule.monthKey(month), forKey: SettingsKeys.lastRecapMonth)
+            activeSheet = .recap(month)
+        }
+    }
 
     /// Search result → journal: switch to the Journal tab, page to that day
     /// (the pager animates, like turning pages) and light up the entry.
@@ -256,6 +282,8 @@ struct ContentView: View {
             ExpenseEditorView(expense: nil, defaultDate: day)
         case .edit(let expense):
             ExpenseEditorView(expense: expense, defaultDate: expense.date)
+        case .recap(let month):
+            MonthRecapSheet(month: month, expenses: expenses, budgets: budgets)
         }
     }
 }

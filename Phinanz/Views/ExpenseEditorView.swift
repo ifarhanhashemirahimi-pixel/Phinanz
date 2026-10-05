@@ -23,6 +23,7 @@ struct ExpenseEditorView: View {
     @State private var date: Date
     @State private var note: String
     @State private var accountID: String
+    @State private var taxMark: TaxMark
     @State private var confirmDelete = false
     @State private var budgetMessage: String?
     @State private var savedCount = 0
@@ -39,6 +40,7 @@ struct ExpenseEditorView: View {
         _date = State(initialValue: expense?.date ?? defaultDate)
         _note = State(initialValue: expense?.note ?? "")
         _accountID = State(initialValue: expense?.accountID ?? UserDefaults.standard.string(forKey: SettingsKeys.lastAccountID) ?? "")
+        _taxMark = State(initialValue: expense?.taxMark ?? .automatic)
     }
 
     private var parsedAmount: Double? {
@@ -51,6 +53,18 @@ struct ExpenseEditorView: View {
     }
 
     private var canSave: Bool { !trimmedStore.isEmpty && parsedAmount != nil }
+
+    private var taxSuggestion: TaxHintKind? {
+        TaxHints.suggestion(store: store, note: note, isIncome: isIncome)
+    }
+
+    /// On when the entry is on the tax list; flipping it stores the user's own choice.
+    private var taxBinding: Binding<Bool> {
+        Binding(
+            get: { TaxHints.isRelevant(mark: taxMark, suggestion: taxSuggestion, isIncome: isIncome) },
+            set: { taxMark = TaxHints.mark(forRelevant: $0, suggestion: taxSuggestion) }
+        )
+    }
 
     private var categories: [ExpenseCategory] {
         isIncome ? ExpenseCategory.incomeCases : ExpenseCategory.expenseCases
@@ -120,6 +134,25 @@ struct ExpenseEditorView: View {
                     DatePicker("Date", selection: $date)
 
                     AccountPicker(accountID: $accountID)
+                }
+
+                if !isIncome {
+                    Section {
+                        Toggle(isOn: taxBinding) {
+                            Label {
+                                Text("For My Tax Return")
+                            } icon: {
+                                Image(systemName: "doc.text.magnifyingglass")
+                            }
+                        }
+                        .accessibilityIdentifier("field-tax")
+                    } footer: {
+                        if let suggestion = taxSuggestion, taxMark == .automatic {
+                            Text("Suggested because it looks like: \(suggestion.title). A hint, not tax advice.")
+                        } else {
+                            Text("Collects expenses that could matter for your tax return. A hint, not tax advice.")
+                        }
+                    }
                 }
 
                 Section("Note") {
@@ -227,8 +260,9 @@ struct ExpenseEditorView: View {
             expense.note = cleanNote
             expense.isIncome = isIncome
             expense.accountID = accountID
+            expense.taxMark = isIncome ? .automatic : taxMark
         } else {
-            context.insert(Expense(
+            let entry = Expense(
                 store: trimmedStore,
                 amount: amount,
                 category: category,
@@ -236,7 +270,9 @@ struct ExpenseEditorView: View {
                 note: cleanNote,
                 isIncome: isIncome,
                 accountID: accountID
-            ))
+            )
+            entry.taxMark = isIncome ? .automatic : taxMark
+            context.insert(entry)
             // New entries start in the account you used last.
             UserDefaults.standard.set(accountID, forKey: SettingsKeys.lastAccountID)
         }

@@ -2,6 +2,21 @@
 
 Alle wichtigen Änderungen an PHINANZ, die neuesten zuerst.
 
+## 2.1.0 – 5. Oktober 2026
+
+**Dein persönlicher Buchhalter**
+
+- **Monatsrückblick:** Beim ersten Öffnen in einem neuen Monat erscheint einmal eine Karte, die den Vormonat in drei bis fünf einfachen Sätzen zusammenfasst: was ausgegeben und eingenommen wurde, der Vergleich zum Vormonat, wohin das meiste Geld ging, was übrig blieb, Budgets und Steuer-Hinweise. Abschaltbar in den Einstellungen
+- Der Rückblick wird auf dem iPhone geschrieben. Auf Wunsch formuliert ihn Gemini – mit eigenem Schalter und nur aus den Monatssummen, ohne Händler und einzelne Buchungen. Ohne Internet oder bei Fehlern greift automatisch der Text vom iPhone
+- Der Rückblick steht auch oben im Monatsbericht und im PDF
+- **Steuer-Hinweise:** Spenden, Fortbildung und Fachbücher, Werbungskosten, Handwerker und Haushaltshilfe, Kinderbetreuung, Versicherungen und Krankheitskosten werden an Stichworten erkannt
+- Neuer Schalter „Für meine Steuererklärung“ im Eintrag, um die Erkennung zu überstimmen
+- Liste „Für deine Steuererklärung“ im Monatsbericht und im PDF, mit Summe für den Monat und seit 1. Januar
+- Neue Spalte „Steuer-Hinweis“ im CSV-Export; Backups behalten die Auswahl
+- Überall der klare Hinweis: Hinweise, keine Steuerberatung
+- Konto-Auswahl im Eintrag ohne SwiftUI-Warnung
+- 99 automatische Tests
+
 ## 2.0.0 – 5. Oktober 2026
 
 **Sicherheit**

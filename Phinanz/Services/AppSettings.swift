@@ -20,6 +20,12 @@ enum SettingsKeys {
     static let widgetHideAmounts = "widgetHideAmounts"
     static let iCloudSync = "iCloudSync"
     static let lastAccountID = "lastAccountID"
+    /// Show the recap card on the first launch of a new month (default on).
+    static let monthlyRecap = "monthlyRecap"
+    /// Let Gemini word the recap; sends only the month's totals (default off).
+    static let recapAI = "recapAI"
+    /// "yyyy-MM" of the last recap card shown.
+    static let lastRecapMonth = "lastRecapMonth"
 
     /// Face ID / passcode lock; offered during onboarding, off until the user turns it on.
     static var lockEnabledValue: Bool {

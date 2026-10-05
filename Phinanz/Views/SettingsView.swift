@@ -26,6 +26,8 @@ struct SettingsView: View {
     @AppStorage(SettingsKeys.dailyReminder) private var dailyReminder = false
     @AppStorage(SettingsKeys.dailyReminderMinutes) private var dailyReminderMinutes = 20 * 60
     @AppStorage(SettingsKeys.paymentReminders) private var paymentReminders = false
+    @AppStorage(SettingsKeys.monthlyRecap) private var monthlyRecap = true
+    @AppStorage(SettingsKeys.recapAI) private var recapAI = false
 
     @State private var notificationsDenied = false
     @State private var backupURL: URL?
@@ -241,13 +243,17 @@ struct SettingsView: View {
             Toggle(isOn: reminderBinding($paymentReminders)) {
                 SettingsLabel(title: "Payment Reminders", systemName: "calendar.badge.clock", color: .orange)
             }
+            Toggle(isOn: $monthlyRecap) {
+                SettingsLabel(title: "Monthly Recap", systemName: "text.bubble.fill", color: .indigo)
+            }
+            .accessibilityIdentifier("monthly-recap-toggle")
         } header: {
             Text("Reminders")
         } footer: {
             if notificationsDenied {
                 Text("Notifications are turned off for PHINANZ. Turn them on in the iOS Settings app.")
             } else {
-                Text("A short reminder in the evening to write down your spending, and a note the day before rent, subscriptions or salary.")
+                Text("A short reminder in the evening to write down your spending, a note the day before rent, subscriptions or salary, and a recap of the month before when a new month starts.")
             }
         }
     }
@@ -289,6 +295,10 @@ struct SettingsView: View {
             Toggle(isOn: $aiConsent) {
                 SettingsLabel(title: "AI Import", systemName: "sparkles", color: .purple)
             }
+            Toggle(isOn: $recapAI) {
+                SettingsLabel(title: "Monthly Recap by Gemini", systemName: "text.bubble.fill", color: .indigo)
+            }
+            .disabled(!aiConsent || !hasStoredKey)
 
             if hasStoredKey {
                 LabeledContent("Gemini API Key") {
@@ -330,7 +340,7 @@ struct SettingsView: View {
         } header: {
             Text("AI Import")
         } footer: {
-            Text("When you analyse a voice note, receipt photo or PDF statement, that file is sent to Google's Gemini API to extract entries. Nothing is sent otherwise, and nothing is saved until you confirm it. Your key stays in the iOS Keychain on this device.")
+            Text("When you analyse a voice note, receipt photo or PDF statement, that file is sent to Google's Gemini API to extract entries. With “Monthly Recap by Gemini”, only the month's totals are sent once a month – no stores and no single entries. Nothing else is sent, and nothing is saved until you confirm it. Your key stays in the iOS Keychain on this device.")
         }
     }
 
@@ -477,6 +487,7 @@ struct SettingsView: View {
         try? context.delete(model: RecurringPayment.self)
         try? context.delete(model: Transfer.self)
         try? context.delete(model: SavingsGoal.self)
+        try? context.delete(model: MonthRecap.self)
         try? context.delete(model: Account.self)
         try? context.save()
         UserDefaults.standard.removeObject(forKey: SettingsKeys.startingBalance)

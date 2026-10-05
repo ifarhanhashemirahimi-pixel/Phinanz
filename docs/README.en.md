@@ -14,6 +14,8 @@ A personal finance journal for iPhone and iPad: **one page per day**, in the sty
 | Accounts | Checking account, cash, credit card, savings — each with its own balance; transfers between accounts (ATM, savings) that don't count as spending; entries, recurring payments and CSV imports go to the account you pick |
 | Savings goals | Target, saved so far, optional date → progress ring and "€150 a month until April"; add or withdraw money |
 | Monthly report | Month vs. previous month by category, savings rate, fixed costs, plain-language insights ("You spent 12 % less than in September"), PDF to share or print |
+| Monthly recap | On the first launch of a new month, a short card sums up the month before in 3–5 plain sentences (spent, change, where the money went, what was left over, budgets, tax hints). Written on the device; optionally worded by Gemini from the month's totals only (separate opt-in). Also at the top of every monthly report and in the PDF |
+| Tax hints | Expenses that could matter for the tax return (donations, training and books, work expenses, tradespeople and household help, childcare, insurance, medical costs) are spotted by keywords; a switch in the editor overrides it. Listed in the report with this month's and the year's total and as a column in the CSV export. Always labelled "a hint, not tax advice" |
 | Budgets | Monthly limit per category, progress bars, warning at 80 % and when over budget |
 | Recurring | Rent, subscriptions, insurance, salary: booked automatically every month (catch-up after the app was closed, day 31 = last day of short months) |
 | Reminders | Optional daily "write down today's spending" reminder and a heads-up the evening before a recurring payment is booked |
@@ -83,7 +85,7 @@ Phinanz/
   Debug/SnapshotRenderer   DEBUG-only screenshot tool for visual QA (see docs/TEST_PLAN.md)
   *.xcstrings              English / German / Persian strings (app, Info.plist, App Shortcuts)
 PhinanzWidget/             WidgetKit extension: widgets + Control Center control
-PhinanzTests/               Swift Testing unit tests (82 tests)
+PhinanzTests/               Swift Testing unit tests (92 tests)
 PhinanzUITests/             XCUITest smoke tests + add-entry flow
 docs/                      ARCHITECTURE.md, SECURITY.md, TEST_PLAN.md, RELEASE_CHECKLIST.md
 ```

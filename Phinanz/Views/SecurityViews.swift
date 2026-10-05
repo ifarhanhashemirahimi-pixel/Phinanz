@@ -13,6 +13,7 @@ struct SecurityOverviewView: View {
     @AppStorage(SettingsKeys.lockEnabled) private var lockEnabled = false
     @AppStorage(SettingsKeys.widgetHideAmounts) private var widgetHideAmounts = false
     @AppStorage(SettingsKeys.aiConsent) private var aiConsent = false
+    @AppStorage(SettingsKeys.recapAI) private var recapAI = false
 
     var body: some View {
         List {
@@ -62,6 +63,13 @@ struct SecurityOverviewView: View {
                         ? "On. Only a file you choose is sent to Google Gemini, over an encrypted connection, and nothing is cached."
                         : "Off. Nothing is sent to any AI service.",
                     systemName: "sparkles", color: .purple, isOn: true
+                )
+                SecurityRow(
+                    title: "Monthly Recap",
+                    detail: aiConsent && recapAI
+                        ? "Worded by Gemini. Only the month's totals are sent – no stores, no single entries."
+                        : "Written on this iPhone. Nothing is sent.",
+                    systemName: "text.bubble.fill", color: .indigo, isOn: true
                 )
                 SecurityRow(
                     title: "iCloud Sync",

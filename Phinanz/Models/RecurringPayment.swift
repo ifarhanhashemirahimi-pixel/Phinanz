@@ -54,6 +54,6 @@ final class RecurringPayment {
 enum AppSchema {
     static let models: [any PersistentModel.Type] = [
         Expense.self, CategoryBudget.self, RecurringPayment.self,
-        Account.self, Transfer.self, SavingsGoal.self
+        Account.self, Transfer.self, SavingsGoal.self, MonthRecap.self
     ]
 }

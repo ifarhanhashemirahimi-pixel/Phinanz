@@ -13,7 +13,7 @@ enum CSVExporter {
         [
             String(localized: "Date"), String(localized: "Time"), String(localized: "Type"),
             String(localized: "Store"), String(localized: "Category"), String(localized: "Amount (EUR)"),
-            String(localized: "Note"), String(localized: "Source")
+            String(localized: "Note"), String(localized: "Source"), String(localized: "Tax Hint")
         ]
     }
 
@@ -40,11 +40,18 @@ enum CSVExporter {
                 expense.category.title,
                 Money.plain(expense.amount).replacingOccurrences(of: ".", with: ","),
                 expense.note,
-                expense.source.title
+                expense.source.title,
+                taxHint(for: expense)
             ]
             lines.append(fields.map { escape($0) }.joined(separator: ";"))
         }
         return lines.joined(separator: "\r\n") + "\r\n"
+    }
+
+    /// The tax-hint column: the kind of hint, "Marked" for the user's own picks, or empty.
+    static func taxHint(for expense: Expense) -> String {
+        guard TaxHints.isRelevant(expense) else { return "" }
+        return TaxHints.suggestion(for: expense)?.title ?? String(localized: "Marked")
     }
 
     /// Quotes fields that need it and neutralises spreadsheet formulas in untrusted text.

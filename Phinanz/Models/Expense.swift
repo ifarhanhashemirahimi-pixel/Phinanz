@@ -111,6 +111,8 @@ final class Expense {
     var isIncome: Bool = false
     /// `Account.id`; empty means the main account.
     var accountID: String = ""
+    /// `TaxMark` raw value: follow the tax hint, or the user's own choice.
+    var taxMarkRaw: Int = TaxMark.automatic.rawValue
 
     init(
         store: String,
@@ -140,6 +142,11 @@ final class Expense {
     var source: ExpenseSource {
         get { ExpenseSource(rawValue: sourceRaw) ?? .manual }
         set { sourceRaw = newValue.rawValue }
+    }
+
+    var taxMark: TaxMark {
+        get { TaxMark(rawValue: taxMarkRaw) ?? .automatic }
+        set { taxMarkRaw = newValue.rawValue }
     }
 
     /// Positive for income, negative for spending.

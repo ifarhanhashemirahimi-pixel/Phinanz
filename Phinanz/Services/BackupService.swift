@@ -20,6 +20,8 @@ struct BackupFile: Codable, Equatable {
         var source: String
         var isIncome: Bool
         var accountID: String? = nil
+        /// `TaxMark` raw value; nil means "automatic" (and keeps old backups readable).
+        var taxMark: Int? = nil
     }
 
     struct Budget: Codable, Equatable {
@@ -126,7 +128,8 @@ enum BackupService {
             entries: entries.sorted { $0.date < $1.date }.map {
                 .init(store: $0.store, amount: $0.amount, category: $0.categoryRaw, date: $0.date,
                       note: $0.note, source: $0.sourceRaw, isIncome: $0.isIncome,
-                      accountID: $0.accountID.isEmpty ? nil : $0.accountID)
+                      accountID: $0.accountID.isEmpty ? nil : $0.accountID,
+                      taxMark: $0.taxMarkRaw == TaxMark.automatic.rawValue ? nil : $0.taxMarkRaw)
             },
             budgets: budgets.map { .init(category: $0.categoryRaw, monthlyLimit: $0.monthlyLimit) },
             recurring: recurring.map {
@@ -227,6 +230,7 @@ enum BackupService {
         try context.delete(model: Account.self)
         try context.delete(model: Transfer.self)
         try context.delete(model: SavingsGoal.self)
+        try context.delete(model: MonthRecap.self)
 
         var summary = RestoreSummary(entries: 0, budgets: 0, recurring: 0)
 
@@ -266,6 +270,7 @@ enum BackupService {
                 isIncome: item.isIncome,
                 accountID: account(item.accountID)
             )
+            entry.taxMark = item.taxMark.flatMap(TaxMark.init(rawValue:)) ?? .automatic
             context.insert(entry)
             summary.entries += 1
         }

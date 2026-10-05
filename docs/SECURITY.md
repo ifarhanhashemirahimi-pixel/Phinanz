@@ -25,9 +25,14 @@ PHINANZ holds a person's complete financial picture, so it is built like a banki
 - **Stays on the device:** everything by default — entries, accounts, budgets, goals, reports, bank CSV imports, PDF reports.
 - **Leaves the device only on request:**
   - AI import: the one file the user picked → Google Gemini API.
+  - Monthly recap by Gemini (separate opt-in, needs AI import and a key): once per month and set of numbers, the month's totals (`RecapFacts`: amounts per category, change against the month before, budgets kept or not, tax-hint total) → Google Gemini API. No store names, notes or single entries. Without the opt-in the recap is written on the device. Gemini's answer is cached in the protected store (`MonthRecap`) and deleted with "Delete Everything" and on restore.
   - Backup / CSV / PDF export: through the share sheet, to wherever the user sends it.
   - iCloud sync (opt-in, needs the iCloud capability): the private CloudKit database of the user's Apple Account.
 - **Never:** analytics, ads, tracking, accounts, third-party SDKs.
+
+## Tax hints
+
+The tax hints only point at expenses that *could* matter for the tax return (keyword rules in `TaxHints.swift`, or the user's own mark). PHINANZ never says what is deductible or how much: tax advice is reserved for licensed advisers in Germany (§ 5 StBerG). Every place that shows tax hints says "a hint, not tax advice", and the app never calls itself a tax adviser.
 
 ## Privacy manifest
 

@@ -13,6 +13,7 @@ import UIKit
 struct MonthlyReportView: View {
     let expenses: [Expense]
     let budgets: [CategoryBudget]
+    var allowGemini = true
 
     @State private var month: Date
     @State private var pdfURL: URL?
@@ -20,9 +21,10 @@ struct MonthlyReportView: View {
 
     private let calendar = Calendar.current
 
-    init(expenses: [Expense], budgets: [CategoryBudget], month: Date = Date()) {
+    init(expenses: [Expense], budgets: [CategoryBudget], month: Date = Date(), allowGemini: Bool = true) {
         self.expenses = expenses
         self.budgets = budgets
+        self.allowGemini = allowGemini
         _month = State(initialValue: month)
     }
 
@@ -47,8 +49,10 @@ struct MonthlyReportView: View {
                     )
                     .padding(.top, 40)
                 } else {
+                    RecapTextCard(report: report, allowGemini: allowGemini)
                     ReportHeaderCard(report: report)
                     if !report.insights.isEmpty { ReportInsightsCard(report: report) }
+                    if !report.taxItems.isEmpty { ReportTaxCard(report: report) }
                     ReportComparisonCard(report: report)
                     if !report.topStores.isEmpty { ReportStoresCard(report: report) }
                 }
@@ -310,8 +314,10 @@ struct ReportPDFPage: View {
                     .font(.caption)
                     .foregroundStyle(.secondary)
             }
+            RecapStaticCard(report: report)
             ReportHeaderCard(report: report)
             if !report.insights.isEmpty { ReportInsightsCard(report: report) }
+            if !report.taxItems.isEmpty { ReportTaxCard(report: report) }
             ReportComparisonCard(report: report)
             Text("Created with PHINANZ on this iPhone. Your data never left the device.")
                 .font(.caption2)

@@ -436,7 +436,12 @@ struct AccountPicker: View {
 
     var body: some View {
         if accounts.count > 1 {
-            Picker(selection: $accountID) {
+            // Resolve empty or unknown ids before the first render, so the picker
+            // never sees a selection without a matching tag.
+            Picker(selection: Binding(
+                get: { AccountLedger.accountID(for: accountID, accounts: accounts) },
+                set: { accountID = $0 }
+            )) {
                 ForEach(AccountLedger.sorted(accounts)) { account in
                     Label(account.name, systemImage: account.kind.symbol).tag(account.id)
                 }

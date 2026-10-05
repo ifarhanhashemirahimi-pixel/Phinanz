@@ -4,6 +4,8 @@
 
 PHINANZ ist eine native iOS-App, mit der du Ausgaben und Einnahmen so einfach festhältst wie in einem Tagebuch: Jeder Tag hat seine eigene Seite, die Tagessumme steht oben. Statt Formulare abzutippen, sprichst du eine Sprachnotiz ein, fotografierst einen Beleg oder lädst einen Kontoauszug hoch. Die KI (Google Gemini) macht daraus Einträge, die du vor dem Speichern prüfst. CSV-Kontoauszüge deutscher Banken liest die App sogar komplett offline.
 
+Wie ein persönlicher Buchhalter fasst PHINANZ am Monatsanfang den Vormonat in ein paar einfachen Sätzen zusammen und sammelt Ausgaben, die für die Steuererklärung interessant sein könnten – ohne dass du dafür etwas tun musst.
+
 Gemacht für den deutschen Markt (Euro, deutsche Zahlenformate, deutsche Banken), auf Deutsch, Englisch und Persisch (von rechts nach links), im hellen und im dunklen Design.
 
 <p align="center">
@@ -43,6 +45,8 @@ Gemacht für den deutschen Markt (Euro, deutsche Zahlenformate, deutsche Banken)
 - Sparziele mit Fortschrittsring und Vorschlag wie „150 € pro Monat bis April“
 - Übersicht für Woche, Monat und Jahr mit Swift Charts
 - Monatsbericht mit Vergleich zum Vormonat, verständlichen Erkenntnissen und PDF-Export
+- **Monatsrückblick:** Beim ersten Öffnen in einem neuen Monat fasst eine Karte den Vormonat in drei bis fünf einfachen Sätzen zusammen – was ausgegeben wurde, wohin das Geld ging, was übrig blieb. Auf dem iPhone geschrieben oder auf Wunsch von Gemini formuliert (nur aus den Monatssummen)
+- **Steuer-Hinweise:** Spenden, Fachbücher, Fortbildung, Handwerker, Kinderbetreuung und Ähnliches werden erkannt und für die Steuererklärung gesammelt – im Bericht, im PDF und im CSV-Export. Ein Schalter im Eintrag überstimmt die Erkennung. Ein Hinweis, keine Steuerberatung
 - Suche nach Händler, Kategorie, Notiz, Betrag oder Monat; ein Tipp auf ein Ergebnis blättert das Journal zu diesem Tag
 
 **Auf dem iPhone zu Hause**
@@ -60,6 +64,7 @@ Gemacht für den deutschen Markt (Euro, deutsche Zahlenformate, deutsche Banken)
 - Backups mit Passwort: PBKDF2-SHA256 mit 600.000 Runden und AES-256-GCM
 - Der Gemini-API-Schlüssel liegt nur im Schlüsselbund dieses Geräts; Anfragen laufen über eine flüchtige Netzwerksitzung ohne Cache
 - An die KI geht nur die Datei, die du selbst auswählst, und erst nach deiner ausdrücklichen Zustimmung
+- Der Monatsrückblick mit Gemini ist ein eigener Schalter: Gesendet werden nur Monatssummen, keine Händler und keine einzelnen Buchungen
 - Siri-Aktionen nur bei entsperrtem iPhone, Widgets können Beträge ausblenden, Mitteilungen enthalten keine Beträge
 - Privacy Manifest für App und Widget; Details im [Sicherheitskonzept](docs/SECURITY.md)
 
@@ -75,8 +80,8 @@ Gemacht für den deutschen Markt (Euro, deutsche Zahlenformate, deutsche Banken)
 
 ## Tests
 
-- 89 automatische Tests: 82 Unit-Tests mit Swift Testing und 7 UI-Tests mit XCTest
-- Rund 10.700 Zeilen Swift
+- 99 automatische Tests: 92 Unit-Tests mit Swift Testing und 7 UI-Tests mit XCTest
+- Rund 11.800 Zeilen Swift
 
 ## Projekt starten
 

@@ -103,6 +103,13 @@ enum SampleData {
                 Expense(store: "Netflix", amount: 13.99, category: .entertainment, date: inMonth(offset, day: 15, hour: 9), source: .recurring, accountID: checking.id)
             ]
         }
+        // A few expenses the tax hints pick up (the month before).
+        lastMonth += [
+            Expense(store: "UNICEF Spende", amount: 25.00, category: .other, date: inMonth(-1, day: 6, hour: 19), accountID: checking.id),
+            Expense(store: "Thalia", amount: 34.90, category: .shopping, date: inMonth(-1, day: 12, hour: 16),
+                    note: "Fachbuch Swift", accountID: credit.id),
+            Expense(store: "Zahnarzt Dr. Weber", amount: 45.00, category: .health, date: inMonth(-1, day: 22, hour: 10), accountID: checking.id)
+        ]
         for entry in lastMonth { context.insert(entry) }
 
         context.insert(CategoryBudget(category: .groceries, monthlyLimit: 250))

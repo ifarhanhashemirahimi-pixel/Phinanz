@@ -17,6 +17,16 @@ struct MonthlyReport: Equatable {
         var id: String { category.rawValue }
     }
 
+    /// An expense that could matter for the tax return (a hint, not advice).
+    struct TaxItem: Identifiable, Equatable {
+        let store: String
+        let amount: Double
+        let date: Date
+        /// nil when the user marked it without an automatic suggestion.
+        let kind: TaxHintKind?
+        var id: String { "\(store)|\(date.timeIntervalSince1970)|\(amount)" }
+    }
+
     struct BiggestExpense: Equatable {
         let store: String
         let amount: Double
@@ -49,7 +59,13 @@ struct MonthlyReport: Equatable {
     let biggestExpense: BiggestExpense?
     let overBudget: [ExpenseCategory]
     let hasBudgets: Bool
+    /// Possibly tax-relevant expenses in this month.
+    var taxItems: [TaxItem] = []
+    /// The same, added up from 1 January to the end of this month.
+    var yearTaxTotal: Double = 0
     var insights: [Insight]
+
+    var taxTotal: Double { Money.roundCents(taxItems.reduce(0) { $0 + $1.amount }) }
 
     var net: Double { Money.roundCents(income - spending) }
 
@@ -107,6 +123,13 @@ enum ReportBuilder {
 
         let fixed = ExpenseStats.spending(current.filter { $0.source == .recurring })
 
+        let yearStart = calendar.dateInterval(of: .year, for: month.start)?.start ?? month.start
+        let yearSoFar = ExpenseStats.expenses(entries, in: DateInterval(start: yearStart, end: month.end))
+        let taxItems = TaxHints.relevant(current).map {
+            MonthlyReport.TaxItem(store: $0.store, amount: $0.amount, date: $0.date, kind: TaxHints.suggestion(for: $0))
+        }
+        let yearTaxTotal = Money.roundCents(TaxHints.relevant(yearSoFar).reduce(0) { $0 + $1.amount })
+
         var report = MonthlyReport(
             month: month,
             previousMonth: previous,
@@ -122,6 +145,8 @@ enum ReportBuilder {
             biggestExpense: biggest,
             overBudget: overBudget,
             hasBudgets: !budgets.isEmpty,
+            taxItems: taxItems,
+            yearTaxTotal: yearTaxTotal,
             insights: []
         )
         report.insights = insights(for: report)
@@ -185,6 +210,12 @@ enum ReportBuilder {
             list.append(.init(symbol: "checkmark.seal.fill",
                               text: String(localized: "You stayed within all your budgets."),
                               tone: .positive))
+        }
+
+        if !report.taxItems.isEmpty {
+            list.append(.init(symbol: "doc.text.magnifyingglass",
+                              text: String(localized: "\(Money.format(report.taxTotal)) of this month's spending could matter for your tax return."),
+                              tone: .neutral))
         }
 
         if let biggest = report.biggestExpense {

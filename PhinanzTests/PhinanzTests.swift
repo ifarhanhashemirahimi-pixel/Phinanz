@@ -177,9 +177,9 @@ struct CSVExporterTests {
         let lines = csv.split(separator: "\r\n").map(String.init)
         // Column titles follow the app language; the format does not.
         #expect(lines[0] == CSVExporter.header.joined(separator: ";"))
-        #expect(lines[0].split(separator: ";").count == 8)
+        #expect(lines[0].split(separator: ";").count == 9)
         let fields = lines[1].split(separator: ";", omittingEmptySubsequences: false).map(String.init)
-        #expect(fields.count == 8)
+        #expect(fields.count == 9)
         #expect(fields[0] == "2026-10-03")
         #expect(fields[1] == "18:45")
         #expect(fields[2] == String(localized: "Expense"))
@@ -188,6 +188,7 @@ struct CSVExporterTests {
         #expect(fields[5] == "45,80")
         #expect(fields[6] == "")
         #expect(fields[7] == ExpenseSource.manual.title)
+        #expect(fields[8] == "") // no tax hint for groceries
     }
 
     @Test func quotesSeparatorsAndNeutralisesFormulas() {
@@ -1065,3 +1066,179 @@ struct BackupCryptoTests {
         #expect(!CloudSync.entitlementGranted(inProfileData: Data("no plist".utf8)))
     }
 }
+
+// MARK: - Tax hints
+
+@MainActor
+struct TaxHintsTests {
+    @Test func findsDonationsTrainingTradespeopleAndChildcare() {
+        #expect(TaxHints.suggestion(store: "UNICEF Spende", note: "", isIncome: false) == .donation)
+        #expect(TaxHints.suggestion(store: "Thalia", note: "Fachbuch Swift", isIncome: false) == .education)
+        #expect(TaxHints.suggestion(store: "Prüfungsgebühr IHK", note: "", isIncome: false) == .education)
+        #expect(TaxHints.suggestion(store: "Elektriker Müller GmbH", note: "", isIncome: false) == .household)
+        #expect(TaxHints.suggestion(store: "Kita Sonnenschein", note: "Beitrag Oktober", isIncome: false) == .childcare)
+        #expect(TaxHints.suggestion(store: "Zahnarztpraxis Weber", note: "", isIncome: false) == .health)
+        #expect(TaxHints.suggestion(store: "ver.di Mitgliedsbeitrag", note: "Gewerkschaft", isIncome: false) == .work)
+    }
+
+    @Test func everydaySpendingAndIncomeGetNoHint() {
+        #expect(TaxHints.suggestion(store: "REWE", note: "", isIncome: false) == nil)
+        #expect(TaxHints.suggestion(store: "Netflix", note: "Abo", isIncome: false) == nil)
+        #expect(TaxHints.suggestion(store: "Spende zurück", note: "", isIncome: true) == nil)
+        // Short keywords only match whole words.
+        #expect(TaxHints.suggestion(store: "Verdict Records", note: "", isIncome: false) == nil)
+        #expect(TaxHints.suggestion(store: "Kitab Café", note: "", isIncome: false) == nil)
+    }
+
+    @Test func theUsersChoiceWins() {
+        #expect(TaxHints.isRelevant(mark: .automatic, suggestion: .donation, isIncome: false))
+        #expect(!TaxHints.isRelevant(mark: .automatic, suggestion: nil, isIncome: false))
+        #expect(!TaxHints.isRelevant(mark: .dismissed, suggestion: .donation, isIncome: false))
+        #expect(TaxHints.isRelevant(mark: .marked, suggestion: nil, isIncome: false))
+        #expect(!TaxHints.isRelevant(mark: .marked, suggestion: nil, isIncome: true))
+        // Agreeing with the suggestion stays automatic.
+        #expect(TaxHints.mark(forRelevant: true, suggestion: .donation) == .automatic)
+        #expect(TaxHints.mark(forRelevant: false, suggestion: .donation) == .dismissed)
+        #expect(TaxHints.mark(forRelevant: true, suggestion: nil) == .marked)
+        #expect(TaxHints.mark(forRelevant: false, suggestion: nil) == .automatic)
+    }
+
+    @Test func reportListsTaxItemsAndAddsUpTheYear() throws {
+        let container = try makeContainer()
+        _ = container
+        let marked = Expense(store: "Lidl", amount: 12, category: .groceries, date: utcDate(2026, 9, 8, 12))
+        marked.taxMark = .marked
+        let dismissed = Expense(store: "Spende Tafel", amount: 5, category: .other, date: utcDate(2026, 9, 9, 12))
+        dismissed.taxMark = .dismissed
+        let entries = [
+            Expense(store: "UNICEF Spende", amount: 25, category: .other, date: utcDate(2026, 9, 6, 12)),
+            Expense(store: "REWE", amount: 40, category: .groceries, date: utcDate(2026, 9, 7, 12)),
+            Expense(store: "Fachbuch", amount: 30, category: .shopping, date: utcDate(2026, 3, 2, 12)),
+            Expense(store: "Fachbuch", amount: 99, category: .shopping, date: utcDate(2025, 12, 2, 12)),
+            marked, dismissed
+        ]
+        let report = ReportBuilder.build(month: utcDate(2026, 9, 15), entries: entries, budgets: [],
+                                         now: utcDate(2026, 10, 5), calendar: utc)
+        #expect(report.taxItems.map(\.store) == ["UNICEF Spende", "Lidl"])
+        #expect(report.taxItems.first?.kind == .donation)
+        #expect(report.taxItems.last?.kind == nil)
+        #expect(report.taxTotal == 37)
+        #expect(report.yearTaxTotal == 67) // March + September, not last year
+        #expect(report.insights.contains { $0.symbol == "doc.text.magnifyingglass" })
+    }
+
+    @Test func csvAndBackupKeepTheTaxChoice() throws {
+        let container = try makeContainer()
+        let context = container.mainContext
+        let book = Expense(store: "Fachbuch", amount: 30, category: .shopping, date: utcDate(2026, 3, 2, 12))
+        let lunch = Expense(store: "Kantine", amount: 8, category: .food, date: utcDate(2026, 3, 3, 12))
+        lunch.taxMark = .marked
+        let gift = Expense(store: "Spende", amount: 10, category: .other, date: utcDate(2026, 3, 4, 12))
+        gift.taxMark = .dismissed
+        for entry in [book, lunch, gift] { context.insert(entry) }
+        try context.save()
+
+        #expect(CSVExporter.taxHint(for: book) == TaxHintKind.education.title)
+        #expect(CSVExporter.taxHint(for: lunch) == String(localized: "Marked"))
+        #expect(CSVExporter.taxHint(for: gift) == "")
+
+        let backup = BackupService.makeBackup(entries: [book, lunch, gift], budgets: [], recurring: [], now: utcDate(2026, 10, 5))
+        #expect(backup.entries.map(\.taxMark) == [nil, TaxMark.marked.rawValue, TaxMark.dismissed.rawValue])
+        let other = try makeContainer()
+        _ = try BackupService.restore(try BackupService.decode(try BackupService.encode(backup)), into: other.mainContext)
+        let restored = try other.mainContext.fetch(FetchDescriptor<Expense>(sortBy: [SortDescriptor(\.date)]))
+        #expect(restored.map(\.taxMark) == [.automatic, .marked, .dismissed])
+    }
+}
+
+// MARK: - Monthly recap
+
+@MainActor
+struct MonthlyRecapTests {
+    private func entries() -> [Expense] {
+        [
+            Expense(store: "REWE", amount: 200, category: .groceries, date: utcDate(2026, 9, 10)),
+            Expense(store: "Miete", amount: 700, category: .housing, date: utcDate(2026, 9, 1), source: .recurring),
+            Expense(store: "Gehalt", amount: 2_000, category: .salary, date: utcDate(2026, 9, 28), isIncome: true),
+            Expense(store: "UNICEF Spende", amount: 50, category: .other, date: utcDate(2026, 9, 15)),
+            Expense(store: "REWE", amount: 300, category: .groceries, date: utcDate(2026, 8, 10)),
+            Expense(store: "Miete", amount: 700, category: .housing, date: utcDate(2026, 8, 1), source: .recurring)
+        ]
+    }
+
+    private func report() -> MonthlyReport {
+        ReportBuilder.build(month: utcDate(2026, 9, 12), entries: entries(),
+                            budgets: [CategoryBudget(category: .groceries, monthlyLimit: 250)],
+                            now: utcDate(2026, 10, 2), calendar: utc)
+    }
+
+    @Test func factsAreTotalsOnly() throws {
+        let container = try makeContainer()
+        _ = container
+        let facts = RecapFacts(report: report())
+        #expect(facts.spent == Money.format(950))
+        #expect(facts.earned == Money.format(2_000))
+        #expect(facts.leftOver == Money.format(1_050))
+        #expect(facts.savedPercent == 53)
+        #expect(facts.changePercent == -5) // 950 € after 1,000 €
+        #expect(facts.topCategories.first?.category == ExpenseCategory.housing.title)
+        #expect(facts.allBudgetsKept)
+        #expect(facts.taxHintCount == 1)
+        #expect(facts.taxHintTotal == Money.format(50))
+        // What Gemini could see: no store names, no single entries.
+        let json = try facts.json()
+        for store in ["REWE", "Miete", "Gehalt", "UNICEF"] {
+            #expect(!json.contains(store))
+        }
+    }
+
+    @Test func localTextIsShortAndUsesTheNumbers() throws {
+        let container = try makeContainer()
+        _ = container
+        let facts = RecapFacts(report: report())
+        let sentences = RecapWriter.sentences(facts)
+        #expect((4...6).contains(sentences.count))
+        let text = RecapWriter.text(facts)
+        #expect(text.contains(facts.spent))
+        #expect(text.contains(facts.leftOver ?? "?"))
+        #expect(text.contains(ExpenseCategory.housing.title))
+        #expect(text.contains(Money.format(50))) // tax hint
+    }
+
+    @Test func showsOncePerMonthAndOnlyWithEnoughEntries() throws {
+        let container = try makeContainer()
+        _ = container
+        let now = utcDate(2026, 10, 2, 9)
+        #expect(RecapSchedule.monthToShow(now: now, lastShownKey: nil, entries: entries(), calendar: utc) == utcDate(2026, 9, 1))
+        #expect(RecapSchedule.monthToShow(now: now, lastShownKey: "2026-08", entries: entries(), calendar: utc) == utcDate(2026, 9, 1))
+        #expect(RecapSchedule.monthToShow(now: now, lastShownKey: "2026-09", entries: entries(), calendar: utc) == nil)
+        // August has only two entries.
+        #expect(RecapSchedule.monthToShow(now: utcDate(2026, 9, 2), lastShownKey: nil, entries: entries(), calendar: utc) == nil)
+        #expect(RecapSchedule.monthKey(utcDate(2026, 1, 31), calendar: utc) == "2026-01")
+    }
+
+    @Test func geminiRecapRequestSendsOnlyTheFacts() throws {
+        let container = try makeContainer()
+        _ = container
+        let facts = RecapFacts(report: report())
+        let request = try GeminiService(apiKey: "test-key", model: "gemini-2.5-flash").makeRecapRequest(facts: facts, language: "de")
+        #expect(request.url?.absoluteString.contains("test-key") == false)
+        #expect(request.value(forHTTPHeaderField: "x-goog-api-key") == "test-key")
+        let body = String(decoding: request.httpBody ?? Data(), as: UTF8.self)
+        #expect(body.contains("du"))
+        #expect(!body.contains("REWE") && !body.contains("Gehalt"))
+        #expect(request.timeoutInterval == 30)
+    }
+
+    @Test func geminiRecapIsCleanedUp() throws {
+        let answer = #"{"candidates":[{"content":{"parts":[{"text":"{\"text\": \"**Im September** hast du 950 € ausgegeben.\\n\\nGut gemacht!\"}"}]}}]}"#
+        let text = try GeminiService.parseRecap(Data(answer.utf8))
+        #expect(text == "Im September hast du 950 € ausgegeben. Gut gemacht!")
+        #expect(GeminiService.sanitizeRecap("Zu kurz.") == nil)
+        let long = String(repeating: "Ein Satz über Geld. ", count: 80)
+        let cut = try #require(GeminiService.sanitizeRecap(long))
+        #expect(cut.count <= 801)
+        #expect(cut.hasSuffix("."))
+    }
+}
+
