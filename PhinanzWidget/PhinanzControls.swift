@@ -21,7 +21,7 @@ struct OpenNewEntryIntent: AppIntent {
 
 struct NewEntryControl: ControlWidget {
     var body: some ControlWidgetConfiguration {
-        StaticControlConfiguration(kind: "Farhan.Phbank.PhinanzWidget.newEntry") {
+        StaticControlConfiguration(kind: "Farhan.Phinanz.PhinanzWidget.newEntry") {
             ControlWidgetButton(action: OpenNewEntryIntent()) {
                 Label("New Entry", systemImage: "square.and.pencil")
             }

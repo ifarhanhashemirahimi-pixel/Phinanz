@@ -25,7 +25,7 @@ Most risk sits in pure logic (money parsing, date handling, AI output) and in a 
 | Monthly report | Unit | `MonthlyReportTests` | Comparison, savings rate, fixed costs, insights, running month average |
 | Backup encryption, v2 backups, widget privacy, iCloud detection | Unit | `BackupCryptoTests` | Round trip, wrong password, tampering, short passwords, random salt, v1 → main account, hidden widget numbers, provisioning-profile parsing |
 | Bank CSV import | Unit | `BankCSVImporterTests` | Sparkasse, ING, DKB, N26, Commerzbank-style and Soll/Haben layouts, encodings, quoting, signs |
-| Launch, tab bar, settings, add entry, savings goal, security overview | UI | `PhbankUITests` | Critical happy paths |
+| Launch, tab bar, settings, add entry, savings goal, security overview | UI | `PhinanzUITests` | Critical happy paths |
 | Camera, microphone, Face ID, real Gemini call | Manual | below | Hardware or secrets required |
 
 Coverage goal: 90 %+ of `Services/` and `Models/`, UI covered by flows rather than percentages. Skip tests for trivial getters and framework behaviour.
@@ -67,4 +67,4 @@ Debug builds contain `Debug/SnapshotRenderer.swift`. When the folder `snapshots/
 ## Running
 
 - Xcode: **Cmd+U**.
-- CLI: `xcodebuild test -scheme Phbank -destination 'platform=iOS Simulator,name=iPhone 16'` (pick any installed simulator).
+- CLI: `xcodebuild test -scheme Phinanz -destination 'platform=iOS Simulator,name=iPhone 16'` (pick any installed simulator).

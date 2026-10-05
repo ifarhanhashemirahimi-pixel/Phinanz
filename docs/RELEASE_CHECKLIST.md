@@ -7,8 +7,8 @@
 - [ ] All unit and UI tests pass (Cmd+U)
 - [ ] Manual device checks from `docs/TEST_PLAN.md` done (Face ID, mic, camera, Gemini, export)
 - [ ] Decide the iOS deployment target (project currently says 26.4)
-- [ ] Bundle ID and signing team set (`Farhan.Phbank`)
-- [ ] App Group `group.Farhan.Phbank` registered for both the app and `PhinanzWidgetExtension` (Signing & Capabilities → App Groups). Push/iCloud entitlements were removed because sync is not used.
+- [ ] Bundle ID and signing team set (`Farhan.Phinanz`)
+- [ ] App Group `group.Farhan.Phinanz` registered for both the app and `PhinanzWidgetExtension` (Signing & Capabilities → App Groups). Push/iCloud entitlements were removed because sync is not used.
 - [ ] Translations reviewed by a native speaker (German, Persian); App Store metadata in all three languages
 - [ ] App icon present in `Assets.xcassets/AppIcon` (a 1024 px icon is included; replace with final artwork if desired)
 - [ ] Version (`MARKETING_VERSION`) and build number updated

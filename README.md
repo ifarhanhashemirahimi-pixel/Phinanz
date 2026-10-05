@@ -28,7 +28,7 @@ A personal finance journal for iPhone and iPad: **one page per day**, in the sty
 
 ## Quick start
 
-1. Open `Phbank.xcodeproj` in Xcode 26 or later.
+1. Open `Phinanz.xcodeproj` in Xcode 26 or later.
 2. Select an iPhone simulator and press **Run**. (The deployment target is iOS 26.4; lower it in the project settings if you need older devices.)
 3. The onboarding asks for a starting balance; then tap **+** to add your first entry.
 4. Run the tests with **Cmd+U** (unit tests use Swift Testing; UI tests launch with `-UITests` in English and an in-memory store with sample data).
@@ -45,8 +45,8 @@ Only the file you choose to analyse is sent to Google. Nothing is saved until yo
 
 Sync needs a paid Apple Developer account, because CloudKit is not available to personal teams.
 
-1. Target **Phbank** → Signing & Capabilities → choose your team.
-2. **+ Capability → iCloud** → tick **CloudKit** → add the container `iCloud.Farhan.Phbank` (or change `CloudSync.containerID` to yours).
+1. Target **Phinanz** → Signing & Capabilities → choose your team.
+2. **+ Capability → iCloud** → tick **CloudKit** → add the container `iCloud.Farhan.Phinanz` (or change `CloudSync.containerID` to yours).
 3. **+ Capability → Background Modes** → tick **Remote notifications**.
 4. Run on a device signed in to iCloud, then Settings → iCloud Sync → reopen the app.
 
@@ -60,8 +60,8 @@ Without the capability the switch stays disabled and PHINANZ never touches Cloud
 ## Project layout
 
 ```
-Phbank/
-  PhbankApp.swift          App entry, lock handling, TipKit
+Phinanz/
+  PhinanzApp.swift          App entry, lock handling, TipKit
   Models/                  Expense (+ categories/sources), CategoryBudget, RecurringPayment, AppSchema
   Theme/Theme.swift        Semantic colours, category icons, card style
   Models/                  + Account, Transfer, SavingsGoal
@@ -81,8 +81,8 @@ Phbank/
   Debug/SnapshotRenderer   DEBUG-only screenshot tool for visual QA (see docs/TEST_PLAN.md)
   *.xcstrings              English / German / Persian strings (app, Info.plist, App Shortcuts)
 PhinanzWidget/             WidgetKit extension: widgets + Control Center control
-PhbankTests/               Swift Testing unit tests (80 tests)
-PhbankUITests/             XCUITest smoke tests + add-entry flow
+PhinanzTests/               Swift Testing unit tests (80 tests)
+PhinanzUITests/             XCUITest smoke tests + add-entry flow
 docs/                      ARCHITECTURE.md, SECURITY.md, TEST_PLAN.md, RELEASE_CHECKLIST.md
 ```
 
@@ -100,7 +100,7 @@ PHINANZ follows Apple's Human Interface Guidelines so it feels like a built-in a
 ## Known limitations
 
 - Single currency (EUR). Data lives on the device (plus your own backups, and iCloud if you turn sync on).
-- The widget shares data through the App Group `group.Farhan.Phbank`. On a real iPhone this needs a signing team that supports App Groups; in the simulator it works without one.
+- The widget shares data through the App Group `group.Farhan.Phinanz`. On a real iPhone this needs a signing team that supports App Groups; in the simulator it works without one.
 - No live bank connection: export a CSV from your bank and import it (Import → Bank CSV). A PSD2 connection would need a licensed provider (see `docs/ARCHITECTURE.md`).
 - Amounts are stored as `Double` and rounded to cents. Fine for a journal; switch to `Decimal` before tax calculations.
 - Receipts: only the first scanned page is analysed.

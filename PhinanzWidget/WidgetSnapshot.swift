@@ -2,7 +2,7 @@
 //  WidgetSnapshot.swift
 //  PhinanzWidget
 //
-//  Keep in sync with Phbank/Services/WidgetBridge.swift.
+//  Keep in sync with Phinanz/Services/WidgetBridge.swift.
 //
 
 import Foundation
@@ -17,7 +17,7 @@ struct WidgetSnapshot: Codable, Equatable {
     /// True when the user hid amounts in widgets; all numbers are zero then.
     var isHidden: Bool? = nil
 
-    static let appGroup = "group.Farhan.Phbank"
+    static let appGroup = "group.Farhan.Phinanz"
     static let key = "widgetSnapshot"
 
     static func load() -> WidgetSnapshot? {
