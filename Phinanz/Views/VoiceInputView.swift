@@ -14,7 +14,8 @@ struct VoiceInputView: View {
     let fallbackDate: Date
 
     @State private var recorder = VoiceRecorder()
-    @State private var issue = AIReadiness.issue()
+    @State private var issue = AIReadiness.issue(for: .voice)
+    @State private var onDevice = AIReadiness.engines(for: .voice).first == .apple
     @State private var handedOff = false
 
     var body: some View {
@@ -57,7 +58,8 @@ struct VoiceInputView: View {
                 Spacer(minLength: 0)
 
                 Button(action: analyse) {
-                    Label("Analyse with Gemini", systemImage: "sparkles")
+                    Label(onDevice ? LocalizedStringKey("Analyse on This iPhone") : LocalizedStringKey("Analyse with Gemini"),
+                          systemImage: onDevice ? "apple.intelligence" : "sparkles")
                         .frame(maxWidth: .infinity)
                 }
                 .buttonStyle(.borderedProminent)
@@ -72,7 +74,10 @@ struct VoiceInputView: View {
                     Button("Cancel") { dismiss() }
                 }
             }
-            .onAppear { issue = AIReadiness.issue() }
+            .onAppear {
+                issue = AIReadiness.issue(for: .voice)
+                onDevice = AIReadiness.engines(for: .voice).first == .apple
+            }
             .onDisappear { if !handedOff { recorder.discard() } }
         }
         .presentationDetents([.medium, .large])

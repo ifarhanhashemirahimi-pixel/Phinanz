@@ -6,8 +6,8 @@
 //  before, shown once when a new month starts and at the top of the report.
 //
 //  The facts are only totals (per category, budgets, tax hints) — never store
-//  names or single entries — so even the optional Gemini wording sees nothing
-//  more than a monthly summary.
+//  names or single entries. Apple Intelligence words them on the iPhone; the
+//  optional Gemini wording sees nothing more than a monthly summary.
 //
 
 import Foundation
@@ -146,17 +146,22 @@ enum RecapSchedule {
     }
 }
 
-struct RecapResult: Equatable {
-    let text: String
-    let byGemini: Bool
+enum RecapSource: String, Equatable {
+    case local, apple, gemini
 }
 
-/// Picks the recap text: Gemini's wording when the user turned it on (cached
-/// per month and set of numbers), otherwise — or when anything fails — the
-/// local text, which is always available instantly.
+struct RecapResult: Equatable {
+    let text: String
+    let source: RecapSource
+}
+
+/// Picks the recap text: Apple Intelligence on the iPhone when it speaks the
+/// app's language, else Gemini when the user turned that on — both cached per
+/// month and set of numbers — and otherwise, or when anything fails, the local
+/// text, which is always there instantly.
 enum RecapProvider {
     static var geminiAllowed: Bool {
-        UserDefaults.standard.bool(forKey: SettingsKeys.recapAI) && AIReadiness.issue() == nil
+        UserDefaults.standard.bool(forKey: SettingsKeys.recapAI) && GeminiReadiness.issue() == nil
     }
 
     static var languageCode: String {
@@ -167,36 +172,53 @@ enum RecapProvider {
         }
     }
 
+    /// The engines that may word the recap, best first.
+    static var engines: [AIEngine] {
+        AIReadiness.engines(for: .recap).filter { $0 == .apple || geminiAllowed }
+    }
+
     static func fingerprint(_ facts: RecapFacts, language: String) -> String {
         "\(language)|\(facts.entryCount)|\(facts.spent)|\(facts.earned ?? "-")|\(facts.taxHintTotal ?? "-")|\(facts.overBudget.joined(separator: ","))"
     }
 
     static func local(for report: MonthlyReport) -> RecapResult {
-        RecapResult(text: RecapWriter.text(RecapFacts(report: report)), byGemini: false)
+        RecapResult(text: RecapWriter.text(RecapFacts(report: report)), source: .local)
     }
 
-    static func recap(for report: MonthlyReport, context: ModelContext, allowGemini: Bool = true) async -> RecapResult {
+    static func recap(for report: MonthlyReport, context: ModelContext, allowAI: Bool = true) async -> RecapResult {
         let facts = RecapFacts(report: report)
-        let local = RecapResult(text: RecapWriter.text(facts), byGemini: false)
-        guard allowGemini, geminiAllowed, !report.isEmpty else { return local }
+        let local = RecapResult(text: RecapWriter.text(facts), source: .local)
+        let engines = self.engines
+        guard allowAI, !engines.isEmpty, !report.isEmpty else { return local }
 
         let key = RecapSchedule.monthKey(report.month.start)
         let language = languageCode
         let stamp = fingerprint(facts, language: language)
         let descriptor = FetchDescriptor<MonthRecap>(predicate: #Predicate { $0.monthKey == key })
         let stored = (try? context.fetch(descriptor)) ?? []
-        if let cached = stored.first(where: { $0.fingerprint == stamp && !$0.text.isEmpty }) {
-            return RecapResult(text: cached.text, byGemini: true)
+        for engine in engines {
+            if let cached = stored.first(where: { $0.fingerprint == stamp && $0.sourceRaw == engine.rawValue && !$0.text.isEmpty }) {
+                return RecapResult(text: cached.text, source: RecapSource(rawValue: engine.rawValue) ?? .local)
+            }
         }
 
-        let apiKey = KeychainStore.get(SettingsKeys.apiKeyAccount) ?? ""
-        let storedModel = UserDefaults.standard.string(forKey: SettingsKeys.geminiModel) ?? ""
-        let service = GeminiService(apiKey: apiKey, model: storedModel.isEmpty ? GeminiService.defaultModel : storedModel)
-        guard let text = try? await service.writeRecap(facts: facts, language: language) else { return local }
-
-        for old in stored { context.delete(old) }
-        context.insert(MonthRecap(monthKey: key, text: text, sourceRaw: "gemini", fingerprint: stamp))
-        try? context.save()
-        return RecapResult(text: text, byGemini: true)
+        for engine in engines {
+            let text: String?
+            switch engine {
+            case .apple:
+                text = try? await AppleIntelligence.writeRecap(facts: facts, language: language)
+            case .gemini:
+                let apiKey = KeychainStore.get(SettingsKeys.apiKeyAccount) ?? ""
+                let storedModel = UserDefaults.standard.string(forKey: SettingsKeys.geminiModel) ?? ""
+                let service = GeminiService(apiKey: apiKey, model: storedModel.isEmpty ? GeminiService.defaultModel : storedModel)
+                text = try? await service.writeRecap(facts: facts, language: language)
+            }
+            guard let text else { continue }
+            for old in stored { context.delete(old) }
+            context.insert(MonthRecap(monthKey: key, text: text, sourceRaw: engine.rawValue, fingerprint: stamp))
+            try? context.save()
+            return RecapResult(text: text, source: RecapSource(rawValue: engine.rawValue) ?? .local)
+        }
+        return local
     }
 }

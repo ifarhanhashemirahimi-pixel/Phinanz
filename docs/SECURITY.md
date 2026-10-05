@@ -23,8 +23,9 @@ PHINANZ holds a person's complete financial picture, so it is built like a banki
 ## Data flows
 
 - **Stays on the device:** everything by default — entries, accounts, budgets, goals, reports, bank CSV imports, PDF reports.
+- **Apple Intelligence (default when available):** voice notes are transcribed with on-device speech recognition (`requiresOnDeviceRecognition`), receipts and scanned pages are read with Vision, PDFs with PDFKit, and the Foundation Models on-device model turns the text into entries and writes the monthly recap. Nothing leaves the device.
 - **Leaves the device only on request:**
-  - AI import: the one file the user picked → Google Gemini API.
+  - AI import with Google Gemini (fallback or user choice, needs consent and a key): the one file the user picked → Google Gemini API.
   - Monthly recap by Gemini (separate opt-in, needs AI import and a key): once per month and set of numbers, the month's totals (`RecapFacts`: amounts per category, change against the month before, budgets kept or not, tax-hint total) → Google Gemini API. No store names, notes or single entries. Without the opt-in the recap is written on the device. Gemini's answer is cached in the protected store (`MonthRecap`) and deleted with "Delete Everything" and on restore.
   - Backup / CSV / PDF export: through the share sheet, to wherever the user sends it.
   - iCloud sync (opt-in, needs the iCloud capability): the private CloudKit database of the user's Apple Account.

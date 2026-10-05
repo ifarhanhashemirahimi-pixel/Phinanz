@@ -2,7 +2,7 @@
 
 **Dein Finanztagebuch fürs iPhone – eine Seite pro Tag.**
 
-PHINANZ ist eine native iOS-App, mit der du Ausgaben und Einnahmen so einfach festhältst wie in einem Tagebuch: Jeder Tag hat seine eigene Seite, die Tagessumme steht oben. Statt Formulare abzutippen, sprichst du eine Sprachnotiz ein, fotografierst einen Beleg oder lädst einen Kontoauszug hoch. Die KI (Google Gemini) macht daraus Einträge, die du vor dem Speichern prüfst. CSV-Kontoauszüge deutscher Banken liest die App sogar komplett offline.
+PHINANZ ist eine native iOS-App, mit der du Ausgaben und Einnahmen so einfach festhältst wie in einem Tagebuch: Jeder Tag hat seine eigene Seite, die Tagessumme steht oben. Statt Formulare abzutippen, sprichst du eine Sprachnotiz ein, fotografierst einen Beleg oder lädst einen Kontoauszug hoch. Apple Intelligence macht daraus direkt auf dem iPhone Einträge, die du vor dem Speichern prüfst – ohne API-Schlüssel und ohne dass deine Daten das Gerät verlassen. Google Gemini springt auf Wunsch ein, wo Apple Intelligence nicht verfügbar ist. CSV-Kontoauszüge deutscher Banken liest die App sogar komplett offline.
 
 Wie ein persönlicher Buchhalter fasst PHINANZ am Monatsanfang den Vormonat in ein paar einfachen Sätzen zusammen und sammelt Ausgaben, die für die Steuererklärung interessant sein könnten – ohne dass du dafür etwas tun musst.
 
@@ -32,10 +32,11 @@ Gemacht für den deutschen Markt (Euro, deutsche Zahlenformate, deutsche Banken)
 
 **Import**
 
-- KI-Import mit Google Gemini: Sprachnotiz, Beleg (Dokumentenscanner oder Fotomediathek) und Kontoauszug als PDF werden zu strukturierten Einträgen
+- KI-Import mit **Apple Intelligence auf dem iPhone**: Sprachnotiz (Spracherkennung auf dem Gerät), Beleg (Texterkennung mit Vision) und Kontoauszug als PDF (PDFKit, bei Scans Texterkennung) werden mit dem Foundation-Models-Framework zu strukturierten Einträgen – ohne Schlüssel, ohne Kosten, ohne Netzwerk
+- **Google Gemini** als optionaler Ersatz: für ältere iPhones, für Persisch und für sehr lange Kontoauszüge. In den Einstellungen wählbar: Automatisch, Apple Intelligence oder Google Gemini
 - Jeder KI-Vorschlag landet zuerst in einer Prüfansicht – nichts wird ohne deine Bestätigung gespeichert
 - Bank-CSV-Import direkt auf dem iPhone, ohne KI und ohne Internet: Sparkasse, ING, DKB, N26, Commerzbank, comdirect, Volksbank, Postbank und andere; Duplikate werden erkannt
-- Eigene PH-Ladeanimation, während Gemini die Datei liest
+- Eigene PH-Ladeanimation, während die KI die Datei liest
 
 **Planen und auswerten**
 
@@ -45,7 +46,7 @@ Gemacht für den deutschen Markt (Euro, deutsche Zahlenformate, deutsche Banken)
 - Sparziele mit Fortschrittsring und Vorschlag wie „150 € pro Monat bis April“
 - Übersicht für Woche, Monat und Jahr mit Swift Charts
 - Monatsbericht mit Vergleich zum Vormonat, verständlichen Erkenntnissen und PDF-Export
-- **Monatsrückblick:** Beim ersten Öffnen in einem neuen Monat fasst eine Karte den Vormonat in drei bis fünf einfachen Sätzen zusammen – was ausgegeben wurde, wohin das Geld ging, was übrig blieb. Auf dem iPhone geschrieben oder auf Wunsch von Gemini formuliert (nur aus den Monatssummen)
+- **Monatsrückblick:** Beim ersten Öffnen in einem neuen Monat fasst eine Karte den Vormonat in drei bis fünf einfachen Sätzen zusammen – was ausgegeben wurde, wohin das Geld ging, was übrig blieb. Von Apple Intelligence auf dem iPhone formuliert (Deutsch, Englisch), sonst auf Wunsch von Gemini (nur aus den Monatssummen) oder mit festen Textbausteinen
 - **Steuer-Hinweise:** Spenden, Fachbücher, Fortbildung, Handwerker, Kinderbetreuung und Ähnliches werden erkannt und für die Steuererklärung gesammelt – im Bericht, im PDF und im CSV-Export. Ein Schalter im Eintrag überstimmt die Erkennung. Ein Hinweis, keine Steuerberatung
 - Suche nach Händler, Kategorie, Notiz, Betrag oder Monat; ein Tipp auf ein Ergebnis blättert das Journal zu diesem Tag
 
@@ -63,7 +64,8 @@ Gemacht für den deutschen Markt (Euro, deutsche Zahlenformate, deutsche Banken)
 - Die Datenbank ist mit der Datenschutzklasse von iOS (Data Protection) verschlüsselt
 - Backups mit Passwort: PBKDF2-SHA256 mit 600.000 Runden und AES-256-GCM
 - Der Gemini-API-Schlüssel liegt nur im Schlüsselbund dieses Geräts; Anfragen laufen über eine flüchtige Netzwerksitzung ohne Cache
-- An die KI geht nur die Datei, die du selbst auswählst, und erst nach deiner ausdrücklichen Zustimmung
+- Mit Apple Intelligence bleibt alles auf dem iPhone: Spracherkennung, Texterkennung und das Sprachmodell laufen auf dem Gerät
+- An Google Gemini geht nur die Datei, die du selbst auswählst, und erst nach deiner ausdrücklichen Zustimmung
 - Der Monatsrückblick mit Gemini ist ein eigener Schalter: Gesendet werden nur Monatssummen, keine Händler und keine einzelnen Buchungen
 - Siri-Aktionen nur bei entsperrtem iPhone, Widgets können Beträge ausblenden, Mitteilungen enthalten keine Beträge
 - Privacy Manifest für App und Widget; Details im [Sicherheitskonzept](docs/SECURITY.md)
@@ -74,14 +76,15 @@ Gemacht für den deutschen Markt (Euro, deutsche Zahlenformate, deutsche Banken)
 - Swift Charts, WidgetKit, App Intents und TipKit
 - VisionKit (Dokumentenscanner), AVFoundation (Sprachaufnahme) und PhotosUI
 - CryptoKit, CommonCrypto, LocalAuthentication und der Schlüsselbund
+- Apple Intelligence mit dem Foundation-Models-Framework (`LanguageModelSession`, `@Generable`), Speech (Spracherkennung auf dem Gerät), Vision (`RecognizeTextRequest`) und PDFKit
 - Google Gemini über die REST-API (`generateContent` mit JSON-Schema). Standardmodell ist `gemini-2.5-flash`; es lässt sich in den Einstellungen ändern
 - Keine Bibliotheken von Drittanbietern
 - Architektur: SwiftUI-Views und SwiftData-Modelle; die Logik steckt in kleinen, testbaren Services (`@Observable`-Controller und reine Funktionen). Mehr dazu in [ARCHITECTURE.md](docs/ARCHITECTURE.md)
 
 ## Tests
 
-- 99 automatische Tests: 92 Unit-Tests mit Swift Testing und 7 UI-Tests mit XCTest
-- Rund 11.800 Zeilen Swift
+- 107 automatische Tests: 100 Unit-Tests mit Swift Testing und 7 UI-Tests mit XCTest
+- Rund 12.600 Zeilen Swift
 
 ## Projekt starten
 
@@ -89,7 +92,7 @@ Gemacht für den deutschen Markt (Euro, deutsche Zahlenformate, deutsche Banken)
 2. Einen iPhone-Simulator wählen und **Run** drücken (Deployment Target: iOS 26.4).
 3. Tests mit **Cmd+U** ausführen.
 
-**KI-Import einschalten:** Einen Schlüssel im [Google AI Studio](https://aistudio.google.com/apikey) erstellen. Dann in der App unter **Einstellungen** den Schalter **KI-Import** einschalten, den Schlüssel einfügen und auf **API-Schlüssel sichern** tippen.
+**KI-Import:** Auf einem iPhone 15 Pro oder neuer mit eingeschalteter Apple Intelligence funktioniert er sofort. Optional für Gemini: einen Schlüssel im [Google AI Studio](https://aistudio.google.com/apikey) erstellen, dann in der App unter **Einstellungen → Google Gemini** den Schalter **Google Gemini verwenden** einschalten, den Schlüssel einfügen und auf **API-Schlüssel sichern** tippen.
 
 **iCloud-Abgleich (optional):** braucht ein kostenpflichtiges Apple-Developer-Konto. Die Schritte stehen in der [englischen Anleitung](docs/README.en.md).
 

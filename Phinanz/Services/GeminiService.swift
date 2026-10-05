@@ -12,7 +12,7 @@
 
 import Foundation
 
-enum GeminiError: LocalizedError, Equatable {
+nonisolated enum GeminiError: LocalizedError, Equatable {
     case consentRequired
     case missingAPIKey
     case invalidModel

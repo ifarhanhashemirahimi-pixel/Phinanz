@@ -152,12 +152,12 @@ enum SnapshotRenderer {
         let recapMonth = Calendar.current.date(byAdding: .month, value: -1, to: Date()) ?? Date()
         let recapReport = ReportBuilder.build(month: recapMonth, entries: entries, budgets: budgets)
         list += [
-            Scenario(name: "37-recap-sheet", style: .light, locale: nil, view: AnyView(MonthRecapSheet(month: recapMonth, expenses: entries, budgets: budgets, allowGemini: false))),
-            Scenario(name: "37b-recap-sheet-dark", style: .dark, locale: nil, view: AnyView(MonthRecapSheet(month: recapMonth, expenses: entries, budgets: budgets, allowGemini: false))),
+            Scenario(name: "37-recap-sheet", style: .light, locale: nil, view: AnyView(MonthRecapSheet(month: recapMonth, expenses: entries, budgets: budgets, allowAI: false))),
+            Scenario(name: "37b-recap-sheet-dark", style: .dark, locale: nil, view: AnyView(MonthRecapSheet(month: recapMonth, expenses: entries, budgets: budgets, allowAI: false))),
             Scenario(name: "38-report-tax", style: .light, locale: nil, view: AnyView(NavigationStack {
                 ScrollView {
                     VStack(spacing: 16) {
-                        RecapTextCard(report: recapReport, allowGemini: false)
+                        RecapTextCard(report: recapReport, allowAI: false)
                         ReportTaxCard(report: recapReport)
                     }
                     .padding()

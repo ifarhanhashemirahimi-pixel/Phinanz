@@ -14,6 +14,7 @@ struct SecurityOverviewView: View {
     @AppStorage(SettingsKeys.widgetHideAmounts) private var widgetHideAmounts = false
     @AppStorage(SettingsKeys.aiConsent) private var aiConsent = false
     @AppStorage(SettingsKeys.recapAI) private var recapAI = false
+    private let onDevice = AIReadiness.engines(for: .receipt).first == .apple
 
     var body: some View {
         List {
@@ -59,14 +60,16 @@ struct SecurityOverviewView: View {
                 )
                 SecurityRow(
                     title: "AI Import",
-                    detail: aiConsent
-                        ? "On. Only a file you choose is sent to Google Gemini, over an encrypted connection, and nothing is cached."
-                        : "Off. Nothing is sent to any AI service.",
+                    detail: onDevice
+                        ? "Apple Intelligence reads your files on this iPhone. Nothing is sent."
+                        : aiConsent
+                            ? "On. Only a file you choose is sent to Google Gemini, over an encrypted connection, and nothing is cached."
+                            : "Off. Nothing is sent to any AI service.",
                     systemName: "sparkles", color: .purple, isOn: true
                 )
                 SecurityRow(
                     title: "Monthly Recap",
-                    detail: aiConsent && recapAI
+                    detail: !onDevice && aiConsent && recapAI
                         ? "Worded by Gemini. Only the month's totals are sent – no stores, no single entries."
                         : "Written on this iPhone. Nothing is sent.",
                     systemName: "text.bubble.fill", color: .indigo, isOn: true

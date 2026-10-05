@@ -2,6 +2,18 @@
 
 Alle wichtigen Änderungen an PHINANZ, die neuesten zuerst.
 
+## 2.2.0 – 5. Oktober 2026
+
+**Apple Intelligence statt Cloud**
+
+- Sprachnotizen, Belege und PDF-Kontoauszüge liest jetzt Apple Intelligence direkt auf dem iPhone (Foundation-Models-Framework): ohne API-Schlüssel, ohne Kosten, ohne dass Daten das Gerät verlassen
+- Spracherkennung auf dem Gerät (Speech), Texterkennung für Belege und gescannte Seiten (Vision), Text aus PDFs (PDFKit); lange Kontoauszüge werden in Teilen gelesen
+- Der Monatsrückblick wird auf Deutsch und Englisch von Apple Intelligence formuliert – ebenfalls auf dem iPhone
+- Google Gemini bleibt als optionaler Ersatz: für iPhones ohne Apple Intelligence, für Persisch und wenn Apple Intelligence eine Datei nicht lesen kann
+- Neue Einstellung „KI-Engine“: Automatisch, Apple Intelligence oder Google Gemini, mit Status der Apple Intelligence auf diesem iPhone
+- Die Ladeanimation zeigt, ob gerade das iPhone oder Gemini liest; die Übersicht „Sicherheit & Datenschutz“ zeigt, dass nichts gesendet wird
+- 107 automatische Tests
+
 ## 2.1.0 – 5. Oktober 2026
 
 **Dein persönlicher Buchhalter**

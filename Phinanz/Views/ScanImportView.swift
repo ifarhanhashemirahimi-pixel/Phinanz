@@ -23,7 +23,8 @@ struct ScanImportView: View {
     @State private var showFileImporter = false
     @State private var fileKind: FileKind = .pdf
     @State private var photoItem: PhotosPickerItem?
-    @State private var issue = AIReadiness.issue()
+    @State private var issue = AIReadiness.issue(for: .receipt)
+    @State private var onDevice = AIReadiness.engines(for: .receipt).first == .apple
     @State private var message: String?
 
     private let cameraAvailable = VNDocumentCameraViewController.isSupported
@@ -62,7 +63,11 @@ struct ScanImportView: View {
                 } header: {
                     Text("With AI")
                 } footer: {
-                    Text("The file is sent to Google Gemini to read the entries. You review everything before it is saved.")
+                    if onDevice {
+                        Text("Apple Intelligence reads the file on this iPhone – nothing is sent. You review everything before it is saved.")
+                    } else {
+                        Text("The file is sent to Google Gemini to read the entries. You review everything before it is saved.")
+                    }
                 }
 
                 Section {
@@ -90,7 +95,10 @@ struct ScanImportView: View {
                     Button("Cancel") { dismiss() }
                 }
             }
-            .onAppear { issue = AIReadiness.issue() }
+            .onAppear {
+                issue = AIReadiness.issue(for: .receipt)
+                onDevice = AIReadiness.engines(for: .receipt).first == .apple
+            }
             .fullScreenCover(isPresented: $showScanner) {
                 DocumentScanner { image in
                     showScanner = false

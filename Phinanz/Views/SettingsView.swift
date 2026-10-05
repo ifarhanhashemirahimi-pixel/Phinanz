@@ -28,6 +28,8 @@ struct SettingsView: View {
     @AppStorage(SettingsKeys.paymentReminders) private var paymentReminders = false
     @AppStorage(SettingsKeys.monthlyRecap) private var monthlyRecap = true
     @AppStorage(SettingsKeys.recapAI) private var recapAI = false
+    @AppStorage(SettingsKeys.aiEngine) private var aiEngine = AIEngineChoice.automatic.rawValue
+    @State private var appleStatus = AppleIntelligence.status
 
     @State private var notificationsDenied = false
     @State private var backupURL: URL?
@@ -90,6 +92,7 @@ struct SettingsView: View {
                 iCloudSection
                 remindersSection
                 aiSection
+                geminiSection
                 exportSection
                 backupSection
                 dataSection
@@ -292,8 +295,30 @@ struct SettingsView: View {
 
     private var aiSection: some View {
         Section {
+            Picker(selection: $aiEngine) {
+                ForEach(AIEngineChoice.allCases) { choice in
+                    Text(verbatim: choice.title).tag(choice.rawValue)
+                }
+            } label: {
+                SettingsLabel(title: "AI Engine", systemName: "apple.intelligence", color: .purple)
+            }
+            .accessibilityIdentifier("ai-engine")
+            LabeledContent("Apple Intelligence") {
+                Text(verbatim: appleStatus.message)
+                    .foregroundStyle(appleStatus == .available ? Color.green : Color.secondary)
+            }
+        } header: {
+            Text("AI")
+        } footer: {
+            Text("Apple Intelligence reads voice notes, receipts and statements on this iPhone and writes the monthly recap – nothing leaves the device and no key is needed. It needs iPhone 15 Pro or later and speaks German and English. “Automatic” uses Google Gemini only when Apple Intelligence can't help, and only if you set it up below.")
+        }
+        .onAppear { appleStatus = AppleIntelligence.status }
+    }
+
+    private var geminiSection: some View {
+        Section {
             Toggle(isOn: $aiConsent) {
-                SettingsLabel(title: "AI Import", systemName: "sparkles", color: .purple)
+                SettingsLabel(title: "Use Google Gemini", systemName: "sparkles", color: .blue)
             }
             Toggle(isOn: $recapAI) {
                 SettingsLabel(title: "Monthly Recap by Gemini", systemName: "text.bubble.fill", color: .indigo)
@@ -338,7 +363,7 @@ struct SettingsView: View {
                     .foregroundStyle(.red)
             }
         } header: {
-            Text("AI Import")
+            Text(verbatim: "Google Gemini")
         } footer: {
             Text("When you analyse a voice note, receipt photo or PDF statement, that file is sent to Google's Gemini API to extract entries. With “Monthly Recap by Gemini”, only the month's totals are sent once a month – no stores and no single entries. Nothing else is sent, and nothing is saved until you confirm it. Your key stays in the iOS Keychain on this device.")
         }

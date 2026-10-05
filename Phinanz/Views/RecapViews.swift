@@ -15,7 +15,7 @@ struct MonthRecapSheet: View {
     let month: Date
     let expenses: [Expense]
     let budgets: [CategoryBudget]
-    var allowGemini = true
+    var allowAI = true
 
     private var report: MonthlyReport {
         ReportBuilder.build(month: month, entries: expenses, budgets: budgets)
@@ -35,7 +35,7 @@ struct MonthRecapSheet: View {
                             .accessibilityAddTraits(.isHeader)
                     }
 
-                    RecapTextCard(report: report, allowGemini: allowGemini)
+                    RecapTextCard(report: report, allowAI: allowAI)
 
                     HStack(spacing: 12) {
                         RecapMetric(title: "Spent", value: Money.format(report.spending), color: .orange)
@@ -107,7 +107,7 @@ struct RecapTextCard: View {
     @Environment(\.modelContext) private var context
     @AppStorage(SettingsKeys.recapAI) private var recapAI = false
     let report: MonthlyReport
-    var allowGemini = true
+    var allowAI = true
 
     @State private var result: RecapResult?
     @State private var isLoading = false
@@ -115,8 +115,9 @@ struct RecapTextCard: View {
 
     private var shown: RecapResult { result ?? RecapProvider.local(for: report) }
 
+    /// Offer Gemini only when Apple Intelligence can't word the recap here.
     private var canOfferGemini: Bool {
-        allowGemini && !recapAI && AIReadiness.issue() == nil
+        allowAI && !recapAI && GeminiReadiness.issue() == nil && !AIReadiness.engines(for: .recap).contains(.apple)
     }
 
     var body: some View {
@@ -135,7 +136,11 @@ struct RecapTextCard: View {
                 .fixedSize(horizontal: false, vertical: true)
                 .contentTransition(.opacity)
                 .accessibilityIdentifier("recap-text")
-            if shown.byGemini {
+            if shown.source == .apple {
+                Label("Worded on this iPhone by Apple Intelligence", systemImage: "apple.intelligence")
+                    .font(.caption)
+                    .foregroundStyle(.secondary)
+            } else if shown.source == .gemini {
                 Label("Worded by Gemini from your monthly totals", systemImage: "sparkles")
                     .font(.caption)
                     .foregroundStyle(.secondary)
@@ -154,7 +159,7 @@ struct RecapTextCard: View {
         .animation(.easeInOut(duration: 0.3), value: shown)
         .task(id: "\(RecapSchedule.monthKey(report.month.start))|\(report.entryCount)|\(report.spending)|\(recapAI)") {
             result = nil
-            guard allowGemini, RecapProvider.geminiAllowed else { return }
+            guard allowAI, !RecapProvider.engines.isEmpty else { return }
             isLoading = true
             result = await RecapProvider.recap(for: report, context: context)
             isLoading = false

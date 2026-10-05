@@ -24,6 +24,8 @@ enum SettingsKeys {
     static let monthlyRecap = "monthlyRecap"
     /// Let Gemini word the recap; sends only the month's totals (default off).
     static let recapAI = "recapAI"
+    /// `AIEngineChoice`: automatic (Apple Intelligence, then Gemini), apple or gemini.
+    static let aiEngine = "aiEngine"
     /// "yyyy-MM" of the last recap card shown.
     static let lastRecapMonth = "lastRecapMonth"
 

@@ -24,7 +24,7 @@ A personal finance journal for iPhone and iPad: **one page per day**, in the sty
 | Summary | Week / month / year spending, income, net, balance, stacked bar chart by category, categories with share bars, top stores |
 | Search | By store, category, note, amount or month; tapping a result turns the journal to that day and highlights the entry |
 | Bank CSV import | CSV export from Sparkasse, ING, DKB, N26, Commerzbank, comdirect, Volksbank, Postbank and others → **review screen** → save. Read on the device: no AI, no network, no API key; categories suggested, duplicates switched off |
-| AI import | Voice note, receipt (camera, document scanner or photo library) and bank-statement PDF → Gemini → **review screen** → save; a PH monogram animation shows while Gemini reads the file |
+| AI import | Voice note, receipt (camera, document scanner or photo library) and bank-statement PDF → **Apple Intelligence on the iPhone** (on-device speech recognition, Vision text recognition, PDFKit, Foundation Models) or, as a fallback, Google Gemini → **review screen** → save; a PH monogram animation shows while the AI reads the file. Settings → AI Engine: Automatic, Apple Intelligence or Google Gemini |
 | Backup | Full backup (entries, accounts, transfers, budgets, recurring payments, goals), **password-protected with AES-256**, restore with confirmation; CSV export for the tax return |
 | Security | Face ID lock in its own window above every sheet, privacy cover in the app switcher, Siri needs an unlocked iPhone, widgets can hide amounts, iOS Data Protection for the database, ephemeral network session, privacy manifest — see `docs/SECURITY.md` and Settings → Security & Privacy |
 | iCloud sync | Optional, through the private CloudKit database (needs the iCloud capability, see below) |
@@ -85,7 +85,7 @@ Phinanz/
   Debug/SnapshotRenderer   DEBUG-only screenshot tool for visual QA (see docs/TEST_PLAN.md)
   *.xcstrings              English / German / Persian strings (app, Info.plist, App Shortcuts)
 PhinanzWidget/             WidgetKit extension: widgets + Control Center control
-PhinanzTests/               Swift Testing unit tests (92 tests)
+PhinanzTests/               Swift Testing unit tests (100 tests)
 PhinanzUITests/             XCUITest smoke tests + add-entry flow
 docs/                      ARCHITECTURE.md, SECURITY.md, TEST_PLAN.md, RELEASE_CHECKLIST.md
 ```

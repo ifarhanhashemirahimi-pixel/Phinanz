@@ -7,6 +7,7 @@
 //
 //    REQUEST   render screenshots (SnapshotRenderer)
 //    DEMO      record a scripted tour of the app into demo-<language>.mp4 (DemoTour)
+//    AITEST    run the on-device AI once on sample data → ai-selftest.txt (AISelfTest)
 //    LANGUAGE  "de", "en", "fa" or "system": app language from the next launch on
 //              (applied after rendering and recording, so this launch is unaffected)
 //

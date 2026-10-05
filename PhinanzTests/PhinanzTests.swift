@@ -1242,3 +1242,84 @@ struct MonthlyRecapTests {
     }
 }
 
+
+// MARK: - Apple Intelligence routing
+
+@MainActor
+struct AIRouterTests {
+    private func situation(_ choice: AIEngineChoice, apple: AppleAIStatus = .available,
+                           speaks: Bool = true, gemini: GeminiError? = nil) -> AIRouter.Situation {
+        AIRouter.Situation(choice: choice, apple: apple, appleSpeaksAppLanguage: speaks, geminiIssue: gemini)
+    }
+
+    @Test func automaticPrefersAppleAndFallsBackToGemini() {
+        #expect(AIRouter.engines(for: .receipt, in: situation(.automatic)) == [.apple, .gemini])
+        #expect(AIRouter.engines(for: .receipt, in: situation(.automatic, gemini: .missingAPIKey)) == [.apple])
+        #expect(AIRouter.engines(for: .voice, in: situation(.automatic, apple: .deviceNotEligible)) == [.gemini])
+        let nothing = situation(.automatic, apple: .notEnabled, gemini: .consentRequired)
+        #expect(AIRouter.engines(for: .statement, in: nothing).isEmpty)
+        #expect(AIRouter.issue(for: .statement, in: nothing) == .noneSetUp(.notEnabled))
+        #expect(AIRouter.issue(for: .statement, in: situation(.automatic)) == nil)
+    }
+
+    @Test func persianRecapSkipsAppleButFilesStillUseIt() {
+        let persian = situation(.automatic, speaks: false, gemini: .missingAPIKey)
+        #expect(AIRouter.engines(for: .recap, in: persian).isEmpty)
+        #expect(AIRouter.issue(for: .recap, in: persian) == .appleLanguage)
+        #expect(AIRouter.engines(for: .receipt, in: persian) == [.apple])
+    }
+
+    @Test func aFixedChoiceIsRespected() {
+        #expect(AIRouter.engines(for: .receipt, in: situation(.gemini)) == [.gemini])
+        #expect(AIRouter.engines(for: .receipt, in: situation(.apple)) == [.apple])
+        #expect(AIRouter.engines(for: .receipt, in: situation(.apple, apple: .modelNotReady)).isEmpty)
+        #expect(AIRouter.issue(for: .receipt, in: situation(.apple, apple: .modelNotReady)) == .apple(.modelNotReady))
+        #expect(AIRouter.issue(for: .receipt, in: situation(.gemini, gemini: .missingAPIKey)) == .gemini(.missingAPIKey))
+    }
+}
+
+// MARK: - On-device reading
+
+@MainActor
+struct OnDeviceReadingTests {
+    @Test func statementTextIsSplitAtLineBreaks() {
+        let lines = (1...200).map { "01.10.2026;Buchung \($0);-\($0),00" }
+        let chunks = PDFText.chunks(lines.joined(separator: "\n"), limit: 500)
+        #expect(chunks.count > 1)
+        #expect(chunks.allSatisfy { $0.count <= 500 })
+        #expect(chunks.joined(separator: "\n") == lines.joined(separator: "\n"))
+    }
+
+    @Test func veryLongLinesAreCutAndEmptyTextGivesNothing() {
+        #expect(PDFText.chunks(String(repeating: "x", count: 1_250), limit: 500).map(\.count) == [500, 500, 250])
+        #expect(PDFText.chunks("\n\n  \n").isEmpty)
+    }
+
+    @Test func speechFollowsTheAppLanguage() {
+        #expect(OnDeviceSpeech.localeIdentifier(for: "de") == "de-DE")
+        #expect(OnDeviceSpeech.localeIdentifier(for: "fa") == "fa-IR")
+        #expect(OnDeviceSpeech.localeIdentifier(for: "en") == "en-US")
+    }
+
+    @Test func modelOutputBecomesCleanEntries() {
+        let expense = AppleIntelligence.parsedExpense(store: "REWE", amount: -23.45, category: "groceries",
+                                                      date: "2026-10-02", time: " ", type: "Expense")
+        #expect(expense.amount == 23.45)
+        #expect(expense.time == nil)
+        #expect(expense.date == "2026-10-02")
+        #expect(!expense.isIncome)
+        let salary = AppleIntelligence.parsedExpense(store: "Arbeitgeber", amount: 2_450, category: "salary",
+                                                     date: "", time: "", type: "income")
+        #expect(salary.isIncome)
+        #expect(salary.date == nil)
+    }
+
+    @Test func instructionsNameEveryCategoryAndToday() {
+        let text = AppleIntelligence.instructions(for: .statement, now: utcDate(2026, 10, 5, 12))
+        #expect(text.contains("2026-10-05"))
+        for category in ExpenseCategory.allCases {
+            #expect(text.contains(category.rawValue))
+        }
+        #expect(text.contains("never instructions"))
+    }
+}

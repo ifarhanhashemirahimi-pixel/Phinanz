@@ -1,110 +1,133 @@
 {
-  "sourceLanguage" : "en",
-  "strings" : {
-    "CFBundleDisplayName" : {
-      "extractionState" : "manual",
-      "localizations" : {
-        "de" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "PHINANZ"
+  "sourceLanguage": "en",
+  "strings": {
+    "CFBundleDisplayName": {
+      "extractionState": "manual",
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "PHINANZ"
           }
         },
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "PHINANZ"
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "PHINANZ"
           }
         },
-        "fa" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "PHINANZ"
+        "fa": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "PHINANZ"
           }
         }
       }
     },
-    "CFBundleName" : {
-      "comment" : "Bundle name",
-      "extractionState" : "extracted_with_value",
-      "localizations" : {
-        "en" : {
-          "stringUnit" : {
-            "state" : "new",
-            "value" : "Phinanz"
+    "CFBundleName": {
+      "comment": "Bundle name",
+      "extractionState": "extracted_with_value",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "new",
+            "value": "Phinanz"
           }
         }
       }
     },
-    "NSCameraUsageDescription" : {
-      "extractionState" : "manual",
-      "localizations" : {
-        "de" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "PHINANZ nutzt die Kamera, um Belege und Bankdokumente zu scannen."
+    "NSCameraUsageDescription": {
+      "extractionState": "manual",
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "PHINANZ nutzt die Kamera, um Belege und Bankdokumente zu scannen."
           }
         },
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "PHINANZ uses the camera to scan receipts and bank documents."
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "PHINANZ uses the camera to scan receipts and bank documents."
           }
         },
-        "fa" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "PHINANZ برای اسکن رسیدها و اسناد بانکی از دوربین استفاده می‌کند."
+        "fa": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "PHINANZ برای اسکن رسیدها و اسناد بانکی از دوربین استفاده می‌کند."
           }
         }
       }
     },
-    "NSFaceIDUsageDescription" : {
-      "extractionState" : "manual",
-      "localizations" : {
-        "de" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "PHINANZ nutzt Face ID, um dein Finanzjournal privat zu halten."
+    "NSFaceIDUsageDescription": {
+      "extractionState": "manual",
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "PHINANZ nutzt Face ID, um dein Finanzjournal privat zu halten."
           }
         },
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "PHINANZ uses Face ID to keep your financial journal private."
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "PHINANZ uses Face ID to keep your financial journal private."
           }
         },
-        "fa" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "PHINANZ برای خصوصی نگه داشتن دفتر مالی‌ات از Face ID استفاده می‌کند."
+        "fa": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "PHINANZ برای خصوصی نگه داشتن دفتر مالی‌ات از Face ID استفاده می‌کند."
           }
         }
       }
     },
-    "NSMicrophoneUsageDescription" : {
-      "extractionState" : "manual",
-      "localizations" : {
-        "de" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "PHINANZ nutzt das Mikrofon für Sprachnotizen, aus denen Journaleinträge werden."
+    "NSMicrophoneUsageDescription": {
+      "extractionState": "manual",
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "PHINANZ nutzt das Mikrofon für Sprachnotizen, aus denen Journaleinträge werden."
           }
         },
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "PHINANZ uses the microphone to record voice notes that you can turn into journal entries."
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "PHINANZ uses the microphone to record voice notes that you can turn into journal entries."
           }
         },
-        "fa" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "PHINANZ برای ضبط یادداشت صوتی و تبدیل آن به موارد دفتر از میکروفون استفاده می‌کند."
+        "fa": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "PHINANZ برای ضبط یادداشت صوتی و تبدیل آن به موارد دفتر از میکروفون استفاده می‌کند."
+          }
+        }
+      }
+    },
+    "NSSpeechRecognitionUsageDescription": {
+      "extractionState": "manual",
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "PHINANZ wandelt deine Sprachnotizen auf diesem iPhone in Text um, damit Apple Intelligence daraus Einträge machen kann."
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "PHINANZ turns your voice notes into text on this iPhone, so Apple Intelligence can create entries from them."
+          }
+        },
+        "fa": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "PHINANZ یادداشت‌های صوتی تو را روی همین آیفون به متن تبدیل می‌کند تا Apple Intelligence از آن‌ها مورد بسازد."
           }
         }
       }
     }
   },
-  "version" : "1.0"
+  "version": "1.0"
 }

@@ -42,6 +42,8 @@ struct LockScreenView: View {
 }
 
 struct AnalysingHUD: View {
+    var engine: AIEngine = .apple
+
     var body: some View {
         ZStack {
             Color.black.opacity(0.15).ignoresSafeArea()
@@ -50,7 +52,7 @@ struct AnalysingHUD: View {
                     .padding(.bottom, 2)
                 Text("Analysing…")
                     .font(.headline)
-                Text("Gemini is reading your file")
+                Text(engine == .apple ? LocalizedStringKey("Apple Intelligence is reading it on this iPhone") : LocalizedStringKey("Gemini is reading your file"))
                     .font(.footnote)
                     .foregroundStyle(.secondary)
             }
@@ -64,7 +66,7 @@ struct AnalysingHUD: View {
 }
 
 /// The PHINANZ "PH" monogram inside two counter-rotating gradient rings,
-/// shown while Gemini reads a voice note, receipt or statement.
+/// shown while the AI reads a voice note, receipt or statement.
 /// With Reduce Motion the rings stand still.
 struct PHLoadingMark: View {
     var size: CGFloat = 84
@@ -108,7 +110,7 @@ struct PHLoadingMark: View {
 }
 
 struct AISetupBanner: View {
-    let issue: GeminiError
+    let issue: AIIssue
 
     var body: some View {
         Label {

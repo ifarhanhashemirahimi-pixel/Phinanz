@@ -47,6 +47,7 @@ struct PhinanzApp: App {
             #if DEBUG
             .task {
                 await SnapshotRenderer.runIfRequested()
+                await AISelfTest.runIfRequested()
                 await DemoTour.runIfRequested(lock: lock)
                 // Last, so this launch keeps its own language and number format.
                 DebugFlags.applyLanguageRequest()

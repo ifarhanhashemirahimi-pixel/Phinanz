@@ -89,7 +89,7 @@ struct ContentView: View {
         .tabBarMinimizeBehavior(.onScrollDown)
         .overlay {
             if importer.phase == .processing {
-                AnalysingHUD()
+                AnalysingHUD(engine: importer.activeEngine)
                     .transition(.opacity)
             }
         }
