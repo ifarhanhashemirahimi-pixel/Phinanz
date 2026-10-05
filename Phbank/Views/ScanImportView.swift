@@ -2,22 +2,26 @@
 //  ScanImportView.swift
 //  Phbank
 //
-//  Receipt scan (camera), receipt photo (library) and bank-statement PDF import.
+//  Receipt scan (camera), receipt photo (library) and bank-statement PDF import
+//  with AI, plus bank CSV import that runs entirely on the device.
 //
 
 import SwiftUI
+import SwiftData
 import PhotosUI
 import UniformTypeIdentifiers
 import VisionKit
 
 struct ScanImportView: View {
     @Environment(\.dismiss) private var dismiss
+    @Query private var history: [Expense]
 
     let importer: ImportController
     let fallbackDate: Date
 
     @State private var showScanner = false
     @State private var showFileImporter = false
+    @State private var fileKind: FileKind = .pdf
     @State private var photoItem: PhotosPickerItem?
     @State private var issue = AIReadiness.issue()
     @State private var message: String?
@@ -51,12 +55,25 @@ struct ScanImportView: View {
                     }
                     .disabled(issue != nil)
 
-                    Button { showFileImporter = true } label: {
+                    Button { pickFile(.pdf) } label: {
                         ImportOptionRow(title: "Import Bank Statement", subtitle: "PDF from the Files app", systemName: "doc.text.fill", color: .indigo)
                     }
                     .disabled(issue != nil)
+                } header: {
+                    Text("With AI")
                 } footer: {
                     Text("The file is sent to Google Gemini to read the entries. You review everything before it is saved.")
+                }
+
+                Section {
+                    Button { pickFile(.csv) } label: {
+                        ImportOptionRow(title: "Import Bank CSV", subtitle: "Export from your bank's website or app", systemName: "building.columns.fill", color: .green)
+                    }
+                    .accessibilityIdentifier("import-bank-csv")
+                } header: {
+                    Text("On This iPhone")
+                } footer: {
+                    Text("Works with Sparkasse, ING, DKB, N26, Commerzbank, comdirect, Volksbank, Postbank and most other banks. The file never leaves your device.")
                 }
 
                 if let message {
@@ -66,7 +83,7 @@ struct ScanImportView: View {
                 }
             }
             .listStyle(.insetGrouped)
-            .navigationTitle("Import with AI")
+            .navigationTitle("Import")
             .navigationBarTitleDisplayMode(.inline)
             .toolbar {
                 ToolbarItem(placement: .cancellationAction) {
@@ -85,15 +102,23 @@ struct ScanImportView: View {
                 }
                 .ignoresSafeArea()
             }
-            .fileImporter(isPresented: $showFileImporter, allowedContentTypes: [.pdf]) { result in
-                switch result {
-                case .success(let url):
+            .fileImporter(isPresented: $showFileImporter, allowedContentTypes: fileKind.types) { result in
+                switch (result, fileKind) {
+                case (.success(let url), .pdf):
                     let importer = importer
                     let date = fallbackDate
                     dismiss()
                     Task { await importer.processPDF(url: url, fallbackDate: date) }
-                case .failure:
-                    message = String(localized: "The PDF could not be opened.")
+                case (.success(let url), .csv):
+                    let importer = importer
+                    let history = history
+                    dismiss()
+                    Task {
+                        try? await Task.sleep(for: .milliseconds(450)) // let this sheet close before the review opens
+                        importer.processBankCSV(url: url, history: history)
+                    }
+                case (.failure, _):
+                    message = String(localized: "The file could not be opened.")
                 }
             }
             .onChange(of: photoItem) { _, item in
@@ -112,6 +137,22 @@ struct ScanImportView: View {
         .presentationDetents([.medium, .large])
     }
 
+    private enum FileKind {
+        case pdf, csv
+
+        var types: [UTType] {
+            switch self {
+            case .pdf: [.pdf]
+            case .csv: [.commaSeparatedText, .tabSeparatedText, .text]
+            }
+        }
+    }
+
+    private func pickFile(_ kind: FileKind) {
+        fileKind = kind
+        showFileImporter = true
+    }
+
     private func begin(_ image: UIImage) {
         let importer = importer
         let date = fallbackDate
@@ -121,6 +162,7 @@ struct ScanImportView: View {
 }
 
 struct ImportOptionRow: View {
+    @Environment(\.isEnabled) private var isEnabled
     let title: LocalizedStringKey
     let subtitle: LocalizedStringKey
     let systemName: String
@@ -130,14 +172,15 @@ struct ImportOptionRow: View {
         HStack(spacing: 14) {
             SettingsIcon(systemName: systemName, color: color, size: 36)
             VStack(alignment: .leading, spacing: 2) {
-                Text(title).foregroundStyle(.primary)
+                Text(title).foregroundStyle(Color.primary)
                 Text(subtitle)
                     .font(.footnote)
-                    .foregroundStyle(.secondary)
+                    .foregroundStyle(Color.secondary)
             }
             Spacer()
         }
         .padding(.vertical, 4)
+        .opacity(isEnabled ? 1 : 0.4)
         .contentShape(Rectangle())
         .accessibilityElement(children: .combine)
     }

@@ -86,7 +86,7 @@ struct ContentView: View {
                 selectedTab = .journal
             }
         }
-        .alert("Couldn't Analyse", isPresented: failureBinding) {
+        .alert(importer.origin == .bankFile ? Text("Couldn't Import") : Text("Couldn't Analyse"), isPresented: failureBinding) {
             Button("OK", role: .cancel) {}
         } message: {
             Text(importer.failureMessage)

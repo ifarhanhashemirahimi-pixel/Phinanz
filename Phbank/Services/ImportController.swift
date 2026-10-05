@@ -2,9 +2,9 @@
 //  ImportController.swift
 //  Phbank
 //
-//  Drives voice / receipt / PDF imports: checks consent + API key, calls Gemini,
-//  and hands the suggested entries to the review sheet. Nothing is saved
-//  automatically.
+//  Drives voice / receipt / PDF imports (checks consent + API key, calls Gemini)
+//  and bank CSV imports (on the device), and hands the suggested entries to
+//  the review sheet. Nothing is saved automatically.
 //
 
 import Foundation
@@ -29,9 +29,15 @@ final class ImportController {
         case failed(String)
     }
 
+    /// Where the entries on the review screen came from.
+    enum Origin: Equatable {
+        case ai, bankFile
+    }
+
     var phase: Phase = .idle
     var drafts: [DraftExpense] = []
     var showReview = false
+    var origin: Origin = .ai
 
     var failureMessage: String {
         if case let .failed(message) = phase { return message }
@@ -71,9 +77,26 @@ final class ImportController {
         await process(kind: .statement, attachment: GeminiAttachment(mimeType: "application/pdf", data: data), fallbackDate: fallbackDate)
     }
 
+    /// Bank CSV export: read on the device — no AI, no network, no API key needed.
+    func processBankCSV(url: URL, history: [Expense]) {
+        origin = .bankFile
+        let scoped = url.startAccessingSecurityScopedResource()
+        defer { if scoped { url.stopAccessingSecurityScopedResource() } }
+        do {
+            guard let data = try? Data(contentsOf: url) else { throw BankCSVImporter.ImportError.unreadable }
+            let bookings = try BankCSVImporter.bookings(in: data)
+            drafts = BankCSVImporter.drafts(from: bookings, history: history)
+            phase = .idle
+            showReview = true
+        } catch {
+            phase = .failed(error.localizedDescription)
+        }
+    }
+
     // MARK: Core
 
     private func process(kind: ImportKind, attachment: GeminiAttachment, fallbackDate: Date) async {
+        origin = .ai
         if let issue = AIReadiness.issue() {
             phase = .failed(issue.localizedDescription)
             return

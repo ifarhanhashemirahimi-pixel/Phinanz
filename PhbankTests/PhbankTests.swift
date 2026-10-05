@@ -618,3 +618,115 @@ struct CategorySuggesterTests {
         #expect(CategorySuggester.suggest(for: "Blumen Meier", history: history) == .other)
     }
 }
+
+// MARK: - Bank CSV import
+
+@MainActor
+struct BankCSVImporterTests {
+    @Test func readsSparkasseCAMTExport() throws {
+        let csv = """
+        "Auftragskonto";"Buchungstag";"Valutadatum";"Buchungstext";"Verwendungszweck";"Beguenstigter/Zahlungspflichtiger";"Kontonummer/IBAN";"BIC (SWIFT-Code)";"Betrag";"Waehrung";"Info"
+        "DE001";"02.10.26";"02.10.26";"KARTENZAHLUNG";"REWE SAGT DANKE 1234";"REWE Markt GmbH";"DE02";"BIC";"-23,45";"EUR";"Umsatz gebucht"
+        "DE001";"01.10.26";"01.10.26";"GUTSCHR. UEBERWEISUNG";"Gehalt Oktober";"Arbeitgeber GmbH";"DE03";"BIC";"2.450,00";"EUR";"Umsatz gebucht"
+        "DE001";"03.10.26";"03.10.26";"LASTSCHRIFT";"Vorgemerkt";"Netflix";"DE04";"BIC";"-12,99";"EUR";"Umsatz vorgemerkt"
+        """
+        let bookings = try BankCSVImporter.bookings(in: csv, calendar: utc)
+        #expect(bookings.count == 2) // pending booking skipped
+        #expect(bookings[0] == .init(date: utcDate(2026, 10, 2), amount: -23.45, counterparty: "REWE Markt GmbH", purpose: "REWE SAGT DANKE 1234"))
+        #expect(bookings[1].amount == 2450)
+
+        let drafts = BankCSVImporter.drafts(from: bookings, calendar: utc)
+        #expect(drafts[0].category == .groceries)
+        #expect(drafts[0].isIncome == false)
+        #expect(drafts[0].amount == 23.45)
+        #expect(drafts[0].source == .statement)
+        #expect(drafts[1].category == .salary)
+        #expect(drafts[1].isIncome)
+    }
+
+    @Test func readsINGExportWithPreamble() throws {
+        let csv = "Umsatzanzeige;Datei erstellt am: 05.10.2026 10:00\r\n\r\nIBAN;DE12 3456\r\nKontoname;Girokonto\r\n\r\n"
+            + "Buchung;Wertstellungsdatum;Auftraggeber/Empfänger;Buchungstext;Verwendungszweck;Saldo;Währung;Betrag;Währung\r\n"
+            + "30.09.2026;30.09.2026;Vodafone GmbH;Lastschrift;Rechnung 0926;1.234,56;EUR;-39,99;EUR\r\n"
+        let bookings = try BankCSVImporter.bookings(in: csv, calendar: utc)
+        #expect(bookings.count == 1)
+        #expect(bookings[0].amount == -39.99)
+        #expect(bookings[0].counterparty == "Vodafone GmbH")
+        #expect(bookings[0].date == utcDate(2026, 9, 30))
+    }
+
+    @Test func readsDKBExportAndPicksPayeeBySign() throws {
+        let csv = """
+        "Girokonto";"DE00 1234"
+        "Kontostand vom 05.10.2026:";"1.000,00 €"
+
+        "Buchungsdatum";"Wertstellung";"Status";"Zahlungspflichtige*r";"Zahlungsempfänger*in";"Verwendungszweck";"Umsatztyp";"IBAN";"Betrag (€)"
+        "04.10.26";"04.10.26";"Gebucht";"Farhan";"Deutsche Bahn";"Ticket";"Ausgang";"DE1";"-29,9"
+        "03.10.26";"03.10.26";"Gebucht";"Mama";"Farhan";"Geschenk";"Eingang";"DE2";"50"
+        """
+        let bookings = try BankCSVImporter.bookings(in: csv, calendar: utc)
+        #expect(bookings.map { $0.counterparty } == ["Deutsche Bahn", "Mama"])
+        #expect(bookings.map { $0.amount } == [-29.9, 50])
+        #expect(BankCSVImporter.drafts(from: bookings, calendar: utc)[0].category == .transport)
+    }
+
+    @Test func readsN26CommaSeparatedExport() throws {
+        let csv = """
+        "Booking Date","Value Date","Partner Name","Partner Iban",Type,"Payment Reference","Account Name","Amount (EUR)","Original Amount","Original Currency","Exchange Rate"
+        2026-10-01,2026-10-01,"Spotify AB",,Presentment,"Premium, October",Main,-10.99,,,
+        """
+        let bookings = try BankCSVImporter.bookings(in: csv, calendar: utc)
+        #expect(bookings.count == 1)
+        #expect(bookings[0].amount == -10.99)
+        #expect(bookings[0].purpose == "Premium, October")
+        #expect(BankCSVImporter.drafts(from: bookings, calendar: utc)[0].category == .entertainment)
+    }
+
+    @Test func usesPurposeWhenThereIsNoCounterpartyColumn() throws {
+        let csv = """
+        Buchungstag;Wertstellung;Umsatzart;Buchungstext;Betrag;Währung
+        02.10.2026;02.10.2026;Lastschrift;Miete Oktober Wohnung;-720,00;EUR
+        """
+        let bookings = try BankCSVImporter.bookings(in: csv, calendar: utc)
+        let draft = try #require(BankCSVImporter.drafts(from: bookings, calendar: utc).first)
+        #expect(draft.store == "Miete Oktober Wohnung")
+        #expect(draft.category == .housing)
+    }
+
+    @Test func handlesSollHabenColumns() throws {
+        let csv = """
+        Buchungstag;Empfänger;Verwendungszweck;Soll;Haben
+        01.10.2026;Stadtwerke;Strom;45,00;
+        02.10.2026;Finanzamt;Erstattung;;120,50
+        """
+        let bookings = try BankCSVImporter.bookings(in: csv, calendar: utc)
+        #expect(bookings.map { $0.amount } == [-45, 120.5])
+    }
+
+    @Test func rejectsFilesThatAreNotBankExports() {
+        #expect(throws: BankCSVImporter.ImportError.unknownLayout) {
+            try BankCSVImporter.bookings(in: "name;age;city\nAnna;30;Berlin", calendar: utc)
+        }
+        #expect(throws: BankCSVImporter.ImportError.noBookings) {
+            try BankCSVImporter.bookings(in: "Buchungstag;Empfänger;Betrag\n", calendar: utc)
+        }
+    }
+
+    @Test func decodesWindows1252() throws {
+        let data = try #require("Buchungstag;Empfänger;Betrag\n01.10.2026;Bäckerei Müller;-3,20\n".data(using: .windowsCP1252))
+        let bookings = try BankCSVImporter.bookings(in: data, calendar: utc)
+        #expect(bookings.first?.counterparty == "Bäckerei Müller")
+    }
+
+    @Test(arguments: [
+        ("-1.234,56", -1234.56), ("1234.56", 1234.56), ("+12,50 €", 12.5), ("12,50-", -12.5), ("−9,99", -9.99)
+    ])
+    func parsesSignedAmounts(text: String, expected: Double) {
+        #expect(BankCSVImporter.parseAmount(text) == expected)
+    }
+
+    @Test func parsesQuotedFieldsAndLineEndings() {
+        let rows = BankCSVImporter.rows(in: "a;\"b;c\";\"say \"\"hi\"\"\"\r\nd;e;f\rg;h;i", delimiter: ";")
+        #expect(rows == [["a", "b;c", "say \"hi\""], ["d", "e", "f"], ["g", "h", "i"]])
+    }
+}

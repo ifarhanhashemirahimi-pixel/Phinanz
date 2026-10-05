@@ -2,7 +2,7 @@
 //  ReviewDraftsView.swift
 //  Phbank
 //
-//  Lets the user check and correct AI-suggested entries before they are saved.
+//  Lets the user check and correct suggested entries (AI or bank CSV) before they are saved.
 //
 
 import SwiftUI
@@ -26,16 +26,39 @@ struct ReviewDraftsView: View {
         NavigationStack {
             List {
                 Section {
-                    Label {
-                        Text("AI can make mistakes. Check every entry before saving.")
-                    } icon: {
-                        Image(systemName: "sparkles").foregroundStyle(.purple)
+                    if importer.origin == .bankFile {
+                        Label {
+                            Text("Read from your bank export on this iPhone. Check the categories, and switch off transfers you don't want in your journal.")
+                        } icon: {
+                            Image(systemName: "building.columns.fill").foregroundStyle(.green)
+                        }
+                        .font(.footnote)
+                    } else {
+                        Label {
+                            Text("AI can make mistakes. Check every entry before saving.")
+                        } icon: {
+                            Image(systemName: "sparkles").foregroundStyle(.purple)
+                        }
+                        .font(.footnote)
                     }
-                    .font(.footnote)
+                    if importer.drafts.count > 3 {
+                        Button(allIncluded ? "Deselect All" : "Select All") {
+                            let include = !allIncluded
+                            for index in importer.drafts.indices { importer.drafts[index].include = include }
+                        }
+                    }
                 }
-                ForEach($importer.drafts) { $draft in
-                    Section {
-                        DraftRow(draft: $draft)
+                if importer.origin == .bankFile {
+                    Section("\(importer.drafts.count) Bookings") {
+                        ForEach($importer.drafts) { $draft in
+                            CompactDraftRow(draft: $draft)
+                        }
+                    }
+                } else {
+                    ForEach($importer.drafts) { $draft in
+                        Section {
+                            DraftRow(draft: $draft)
+                        }
                     }
                 }
             }
@@ -57,6 +80,10 @@ struct ReviewDraftsView: View {
             .onAppear(perform: markDuplicates)
         }
         .interactiveDismissDisabled()
+    }
+
+    private var allIncluded: Bool {
+        importer.drafts.allSatisfy(\.include)
     }
 
     private func markDuplicates() {
@@ -139,5 +166,49 @@ private struct DraftRow: View {
         .onChange(of: draft.isIncome) { _, income in
             if draft.category.isIncome != income { draft.category = income ? .salary : .other }
         }
+    }
+}
+
+/// One booking from a bank export: compact, because a month can hold a hundred of them.
+private struct CompactDraftRow: View {
+    @Binding var draft: DraftExpense
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: 8) {
+            Toggle(isOn: $draft.include) {
+                HStack(spacing: 12) {
+                    CategoryIcon(category: draft.category, size: 32)
+                    VStack(alignment: .leading, spacing: 2) {
+                        Text(draft.store)
+                            .lineLimit(1)
+                        Text(draft.date, format: .dateTime.day().month(.abbreviated).year())
+                            .font(.footnote)
+                            .foregroundStyle(.secondary)
+                    }
+                    Spacer(minLength: 8)
+                    Text(draft.amount.map { (draft.isIncome ? "+" : "") + Money.format($0) } ?? "–")
+                        .font(Theme.amount(.body))
+                        .monospacedDigit()
+                        .foregroundStyle(draft.isIncome ? AnyShapeStyle(Theme.income) : AnyShapeStyle(.primary))
+                }
+            }
+
+            if draft.isPossibleDuplicate {
+                Label("Possible duplicate — already in your journal", systemImage: "exclamationmark.triangle.fill")
+                    .font(.footnote)
+                    .foregroundStyle(.orange)
+            }
+
+            if draft.include {
+                Picker("Category", selection: $draft.category) {
+                    ForEach(draft.isIncome ? ExpenseCategory.incomeCases : ExpenseCategory.expenseCases) { item in
+                        Label(item.title, systemImage: item.symbol).tag(item)
+                    }
+                }
+                .font(.subheadline)
+            }
+        }
+        .padding(.vertical, 2)
+        .accessibilityElement(children: .contain)
     }
 }

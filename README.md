@@ -17,6 +17,7 @@ A personal finance journal for iPhone and iPad: **one page per day**, in the sty
 | Widgets & Controls | Home Screen (small/medium) and Lock Screen widgets with a quick-add button; a Control Center / Action button control that opens a new entry |
 | Summary | Week / month / year spending, income, net, balance, stacked bar chart by category, categories with share bars, top stores |
 | Search | By store, category, note, amount or month |
+| Bank CSV import | CSV export from Sparkasse, ING, DKB, N26, Commerzbank, comdirect, Volksbank, Postbank and others → **review screen** → save. Read on the device: no AI, no network, no API key; categories suggested, duplicates switched off |
 | AI import | Voice note, receipt (camera, document scanner or photo library) and bank-statement PDF → Gemini → **review screen** → save |
 | Backup | Full JSON backup (entries, budgets, recurring payments) to Files / share sheet, restore with confirmation; CSV export for the tax return |
 | Security | Face ID / Touch ID lock with passcode fallback, privacy cover in the app switcher, API key in the Keychain |
@@ -51,7 +52,7 @@ Phbank/
   Theme/Theme.swift        Semantic colours, category icons, card style
   Services/                Pure logic and side effects:
                            Money, YearCalendar, ExpenseStats, BudgetCalculator, RecurringScheduler,
-                           CategorySuggester, CSVExporter, BackupService, NotificationScheduler,
+                           CategorySuggester, BankCSVImporter, CSVExporter, BackupService, NotificationScheduler,
                            GeminiService, DraftExpense, ImportController, VoiceRecorder,
                            AppLock, KeychainStore, WidgetBridge, AppRouter, Persistence, SampleData
   Intents/                 App Intents + App Shortcuts (Siri, Spotlight, Shortcuts app)
@@ -62,7 +63,7 @@ Phbank/
   Debug/SnapshotRenderer   DEBUG-only screenshot tool for visual QA (see docs/TEST_PLAN.md)
   *.xcstrings              English / German / Persian strings (app, Info.plist, App Shortcuts)
 PhinanzWidget/             WidgetKit extension: widgets + Control Center control
-PhbankTests/               Swift Testing unit tests (53 tests)
+PhbankTests/               Swift Testing unit tests (63 tests)
 PhbankUITests/             XCUITest smoke tests + add-entry flow
 docs/                      ARCHITECTURE.md, TEST_PLAN.md, RELEASE_CHECKLIST.md
 ```
@@ -82,7 +83,7 @@ PHINANZ follows Apple's Human Interface Guidelines so it feels like a built-in a
 
 - Single currency (EUR); data lives only on the device (plus your own backups). CloudKit sync is deliberately switched off.
 - The widget shares data through the App Group `group.Farhan.Phbank`. On a real iPhone this needs a signing team that supports App Groups; in the simulator it works without one.
-- No direct bank connection yet. Planned: CSV import from German banks, later PSD2 via a licensed provider (see `docs/ARCHITECTURE.md`).
+- No live bank connection: export a CSV from your bank and import it (Import → Bank CSV). A PSD2 connection would need a licensed provider (see `docs/ARCHITECTURE.md`).
 - Amounts are stored as `Double` and rounded to cents. Fine for a journal; switch to `Decimal` before tax calculations.
 - Receipts: only the first scanned page is analysed.
 - Changing the language: iOS Settings → PHINANZ → Language (the in-app "Language" row opens it).

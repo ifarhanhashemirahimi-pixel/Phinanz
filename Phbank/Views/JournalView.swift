@@ -86,6 +86,11 @@ struct JournalView: View {
                         } label: {
                             Label("Receipt or Statement", systemImage: "doc.viewfinder")
                         }
+                        Button {
+                            activeSheet = .scan
+                        } label: {
+                            Label("Bank CSV", systemImage: "building.columns")
+                        }
                     } label: {
                         Label("Import with AI", systemImage: "sparkles")
                     }

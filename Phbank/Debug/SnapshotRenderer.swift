@@ -78,6 +78,19 @@ enum SnapshotRenderer {
             DraftExpense(parsed: ParsedExpense(store: "Arbeitgeber GmbH", amount: 2450, category: "salary", date: nil, time: nil, note: nil, type: "income"), source: .statement, fallbackDate: Date())
         ]
 
+        let bankImporter = ImportController()
+        bankImporter.origin = .bankFile
+        let sampleCSV = """
+        Buchungstag;Beguenstigter/Zahlungspflichtiger;Verwendungszweck;Betrag
+        01.10.2026;Arbeitgeber GmbH;Gehalt Oktober;2.450,00
+        01.10.2026;Hausverwaltung Kraus;Miete Oktober;-720,00
+        02.10.2026;REWE Markt GmbH;REWE SAGT DANKE;-23,45
+        02.10.2026;Netflix International;Abo;-13,99
+        03.10.2026;PayPal Europe;Ihr Einkauf bei Blumen Meier;-18,00
+        04.10.2026;Deutsche Bahn;Ticket Frankfurt-Darmstadt;-9,80
+        """
+        bankImporter.drafts = BankCSVImporter.drafts(from: (try? BankCSVImporter.bookings(in: sampleCSV)) ?? [])
+
         var list: [Scenario] = [
             Scenario(name: "01-journal-light", style: .light, locale: nil, view: AnyView(ContentView(initialTab: .journal, previewMode: true))),
             Scenario(name: "02-journal-dark", style: .dark, locale: nil, view: AnyView(ContentView(initialTab: .journal, previewMode: true))),
@@ -98,6 +111,7 @@ enum SnapshotRenderer {
             Scenario(name: "18-summary-de", style: .light, locale: "de", view: AnyView(ContentView(initialTab: .summary, previewMode: true))),
             Scenario(name: "19-plan-fa-dark", style: .dark, locale: "fa", view: AnyView(ContentView(initialTab: .plan, previewMode: true))),
             Scenario(name: "20-journal-empty-day", style: .light, locale: nil, view: AnyView(ContentView(initialTab: .journal, initialDate: Calendar.current.date(byAdding: .day, value: 3, to: Date()), previewMode: true))),
+            Scenario(name: "22-review-bank-csv", style: .light, locale: nil, view: AnyView(ReviewDraftsView(importer: bankImporter) { _ in })),
             Scenario(name: "21-journal-income-day-dark", style: .dark, locale: nil, view: AnyView(ContentView(initialTab: .journal, initialDate: Calendar.current.date(byAdding: .day, value: -4, to: Date()), previewMode: true)))
         ]
         if let sampleEntry {
@@ -116,7 +130,7 @@ enum SnapshotRenderer {
         }
 
         let window = UIWindow(windowScene: scene)
-        let bounds = scene.coordinateSpace.bounds
+        let bounds = scene.effectiveGeometry.coordinateSpace.bounds
         // Always render in portrait, even if the simulator is rotated.
         window.frame = CGRect(x: 0, y: 0, width: min(bounds.width, bounds.height), height: max(bounds.width, bounds.height))
         window.overrideUserInterfaceStyle = scenario.style

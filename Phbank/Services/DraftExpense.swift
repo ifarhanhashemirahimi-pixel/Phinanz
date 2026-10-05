@@ -2,7 +2,7 @@
 //  DraftExpense.swift
 //  Phbank
 //
-//  An AI-suggested expense the user can edit before it is saved.
+//  A suggested entry (from AI or a bank export) the user can edit before it is saved.
 //
 
 import Foundation
@@ -26,6 +26,17 @@ struct DraftExpense: Identifiable, Equatable {
         self.date = Self.combine(date: parsed.date, time: parsed.time, fallback: fallbackDate, calendar: calendar)
         self.note = parsed.note ?? ""
         self.isIncome = parsed.isIncome
+        self.source = source
+    }
+
+    init(store: String, amount: Double, category: ExpenseCategory, date: Date, note: String = "",
+         isIncome: Bool, source: ExpenseSource) {
+        self.store = store
+        self.amountText = Money.input(amount)
+        self.category = category
+        self.date = date
+        self.note = note
+        self.isIncome = isIncome
         self.source = source
     }
 

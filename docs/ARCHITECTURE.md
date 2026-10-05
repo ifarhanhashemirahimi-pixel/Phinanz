@@ -80,10 +80,13 @@ The app writes a `WidgetSnapshot` (today, month spending, month income, balance,
 
 String Catalogs (`Localizable.xcstrings`, `InfoPlist.xcstrings`, and one in the widget) with English as source and German and Persian translations. Model-level strings use `String(localized:)`; views use `LocalizedStringKey` literals. Persian runs right-to-left automatically; chevrons use `backward`/`forward` symbols so they mirror. `Money.parse` accepts Persian and Arabic-Indic digits.
 
-## Bank connection (planned)
+## Bank CSV import
 
-1. CSV import for the common German bank exports (Sparkasse, ING, DKB, N26, Commerzbank, Volksbank) — no server needed.
-2. PSD2 account information via a licensed aggregator (for personal use e.g. Enable Banking's restricted mode). Needs a small backend that holds the aggregator's private key; the app only talks to that backend. Publishing to other users requires a BaFin licence or a contract with a licensed provider.
+`BankCSVImporter` reads bank exports on the device. It decodes UTF-8 or Windows-1252, tries `;`, tab and `,` as separators, and looks in the first 40 lines for a header row with a date column and an amount column (or separate Soll/Haben columns). Columns are found by name (German and English, umlauts folded), so layouts it has never seen usually work. Pending bookings (`vorgemerkt`) are skipped; the counterparty comes from a combined column or, for DKB-style files, from payee or payer depending on the sign. Each booking becomes a `DraftExpense` (`source = .statement`, 12:00 on the booking day) with a category from `CategorySuggester` and goes through the same review screen and duplicate detection as AI imports, so importing the same file twice adds nothing unless you switch the rows back on.
+
+## Live bank connection (not planned for now)
+
+1. PSD2 account information via a licensed aggregator (for personal use e.g. Enable Banking's restricted mode). Needs a small backend that holds the aggregator's private key; the app only talks to that backend. Publishing to other users requires a BaFin licence or a contract with a licensed provider.
 
 ## Security and privacy notes
 
@@ -96,6 +99,6 @@ String Catalogs (`Localizable.xcstrings`, `InfoPlist.xcstrings`, and one in the 
 ## Extending
 
 - **Sync**: add an iCloud container, switch `cloudKitDatabase` to `.automatic`, test with two devices.
-- **Bank CSV import**: parse bank exports into `DraftExpense` and reuse the review screen and duplicate detection.
+- **CAMT / MT940 import**: same pipeline as the CSV importer for the XML and SWIFT formats.
 - **Multiple currencies**: add a currency code to `Expense` and convert in `ExpenseStats`.
 - **Decimal money**: replace `Double` with `Decimal` in `Expense`, `Money` and `ExpenseStats`.
