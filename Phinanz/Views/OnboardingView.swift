@@ -7,6 +7,7 @@
 //
 
 import SwiftUI
+import SwiftData
 
 struct OnboardingView: View {
     var onFinish: () -> Void
