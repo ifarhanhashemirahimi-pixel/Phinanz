@@ -2,7 +2,7 @@
 //  PlanView.swift
 //  Phbank
 //
-//  Budgets for this month and upcoming recurring payments.
+//  Accounts, savings goals, budgets for this month and upcoming recurring payments.
 //
 
 import SwiftUI
@@ -47,6 +47,9 @@ struct PlanView: View {
     var body: some View {
         NavigationStack {
             List {
+                AccountsSection(expenses: expenses)
+                GoalsSection()
+
                 Section {
                     if statuses.isEmpty {
                         NavigationLink {

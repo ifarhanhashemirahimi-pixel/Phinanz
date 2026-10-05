@@ -109,6 +109,8 @@ final class Expense {
     var note: String = ""
     var sourceRaw: String = ExpenseSource.manual.rawValue
     var isIncome: Bool = false
+    /// `Account.id`; empty means the main account.
+    var accountID: String = ""
 
     init(
         store: String,
@@ -117,7 +119,8 @@ final class Expense {
         date: Date = Date(),
         note: String = "",
         source: ExpenseSource = .manual,
-        isIncome: Bool = false
+        isIncome: Bool = false,
+        accountID: String = ""
     ) {
         self.store = store
         self.amount = amount
@@ -126,6 +129,7 @@ final class Expense {
         self.note = note
         self.sourceRaw = source.rawValue
         self.isIncome = isIncome
+        self.accountID = accountID
     }
 
     var category: ExpenseCategory {

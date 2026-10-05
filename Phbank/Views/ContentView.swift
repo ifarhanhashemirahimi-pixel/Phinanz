@@ -8,6 +8,9 @@
 
 import SwiftUI
 import SwiftData
+#if DEBUG
+import Combine
+#endif
 
 enum AppTab: Hashable {
     case journal, summary, plan, search
@@ -35,8 +38,9 @@ struct ContentView: View {
     @Environment(\.scenePhase) private var scenePhase
     @Query(sort: \Expense.date) private var expenses: [Expense]
     @Query private var budgets: [CategoryBudget]
-    @AppStorage(SettingsKeys.startingBalance) private var startingBalance = 0.0
+    @Query private var accounts: [Account]
     @AppStorage(SettingsKeys.didOnboard) private var didOnboard = false
+    @AppStorage(SettingsKeys.widgetHideAmounts) private var widgetHideAmounts = false
 
     @State private var selectedTab: AppTab
     @State private var journalDate = Calendar.current.startOfDay(for: Date())
@@ -44,6 +48,10 @@ struct ContentView: View {
     @State private var importer = ImportController()
     @State private var showOnboarding = false
     @State private var router = AppRouter.shared
+    #if DEBUG
+    @State private var demoSheet: DemoSheet?
+    @Query(sort: \SavingsGoal.createdAt) private var demoGoals: [SavingsGoal]
+    #endif
 
     private let calendar = Calendar.current
     /// Previews and debug screenshots: no onboarding, scheduler or widget updates.
@@ -91,24 +99,18 @@ struct ContentView: View {
         } message: {
             Text(importer.failureMessage)
         }
-        .onChange(of: lock?.isLocked ?? false) { _, locked in
-            // Sheets float above the lock screen, so close them when the app locks.
-            if locked {
-                activeSheet = nil
-                importer.showReview = false
-            }
-        }
         .task {
             guard !previewMode else { return }
             RecurringScheduler.run(in: context)
-            if !didOnboard && !AppEnvironment.isUITest { showOnboarding = true }
+            if !didOnboard && !AppEnvironment.isUITest && !AppEnvironment.isDemo { showOnboarding = true }
         }
         .task(id: widgetKey) {
             guard !previewMode else { return }
             WidgetBridge.publish(WidgetBridge.makeSnapshot(
                 entries: expenses,
                 budgets: budgets,
-                startingBalance: startingBalance
+                startingBalance: openingBalances,
+                hideAmounts: widgetHideAmounts
             ))
         }
         .onChange(of: scenePhase) { _, phase in
@@ -120,19 +122,18 @@ struct ContentView: View {
         .onOpenURL { url in
             router.handle(url)
         }
-        .onChange(of: router.pendingAction, initial: true) { _, action in
-            guard let action, !previewMode else { return }
-            router.pendingAction = nil
-            let today = calendar.startOfDay(for: Date())
-            switch action {
-            case .newEntry:
-                selectedTab = .journal
-                journalDate = today
-                activeSheet = .add(YearCalendar.entryDate(on: today, calendar: calendar))
-            case .showToday:
-                selectedTab = .journal
-                journalDate = today
-            }
+        #if DEBUG
+        .onReceive(DemoDirector.shared.commands, perform: handleDemo)
+        .sheet(item: $demoSheet) { sheet in
+            demoSheetContent(sheet)
+        }
+        #endif
+        .onChange(of: router.pendingAction, initial: true) { _, _ in
+            handlePendingAction()
+        }
+        .onChange(of: lock?.isLocked ?? false) { _, locked in
+            // Links that arrived while the app was locked run after Face ID.
+            if !locked { handlePendingAction() }
         }
         .fullScreenCover(isPresented: $showOnboarding) {
             OnboardingView {
@@ -142,10 +143,70 @@ struct ContentView: View {
         }
     }
 
+    #if DEBUG
+    private func handleDemo(_ command: DemoCommand) {
+        switch command {
+        case .tab(let tab):
+            withAnimation(.snappy) { selectedTab = tab }
+        case .sheet(let sheet):
+            activeSheet = sheet
+        case .extra(let sheet):
+            demoSheet = sheet
+        case .journal(let date):
+            withAnimation(.snappy) { journalDate = calendar.startOfDay(for: date) }
+        case .bankCSV(let url):
+            importer.processBankCSV(url: url, history: expenses)
+        default:
+            break
+        }
+    }
+
+    @ViewBuilder
+    private func demoSheetContent(_ sheet: DemoSheet) -> some View {
+        switch sheet {
+        case .report:
+            NavigationStack {
+                MonthlyReportView(
+                    expenses: expenses,
+                    budgets: budgets,
+                    month: calendar.date(byAdding: .month, value: -1, to: Date()) ?? Date()
+                )
+            }
+        case .goal:
+            if let goal = demoGoals.first {
+                NavigationStack { GoalDetailView(goal: goal) }
+            }
+        case .security:
+            NavigationStack { SecurityOverviewView() }
+        }
+    }
+    #endif
+
+    /// Runs a deep-link or Siri request — never while the journal is locked.
+    private func handlePendingAction() {
+        guard let action = router.pendingAction, !previewMode, !(lock?.isLocked ?? false) else { return }
+        router.pendingAction = nil
+        let today = calendar.startOfDay(for: Date())
+        switch action {
+        case .newEntry:
+            selectedTab = .journal
+            journalDate = today
+            activeSheet = .add(YearCalendar.entryDate(on: today, calendar: calendar))
+        case .showToday:
+            selectedTab = .journal
+            journalDate = today
+        }
+    }
+
+    /// All accounts' opening balances; transfers cancel out in the total.
+    private var openingBalances: Double {
+        Money.roundCents(accounts.reduce(0) { $0 + $1.openingBalance })
+    }
+
     /// Changes whenever the numbers shown in the widget could change.
     private var widgetKey: String {
         let day = calendar.startOfDay(for: Date()).timeIntervalSince1970
-        return "\(expenses.count)|\(ExpenseStats.net(expenses))|\(ExpenseStats.total(expenses))|\(budgets.count)|\(startingBalance)|\(day)"
+        return "\(expenses.count)|\(ExpenseStats.net(expenses))|\(ExpenseStats.total(expenses))|\(budgets.count)|\(openingBalances)|\(widgetHideAmounts)|\(day)"
     }
 
     private var failureBinding: Binding<Bool> {

@@ -42,6 +42,39 @@ extension ExpenseCategory {
     }
 }
 
+extension AccountKind {
+    var color: Color {
+        switch self {
+        case .checking: .blue
+        case .cash: .green
+        case .credit: .orange
+        case .savings: .purple
+        }
+    }
+}
+
+/// Symbols and colours a savings goal can use.
+enum GoalStyle {
+    static let symbols = [
+        "star.fill", "airplane", "car.fill", "house.fill", "laptopcomputer", "iphone",
+        "gift.fill", "graduationcap.fill", "heart.fill", "bicycle", "camera.fill", "umbrella.fill"
+    ]
+    static let colorNames = ["blue", "green", "orange", "pink", "purple", "teal", "red", "indigo"]
+
+    static func color(_ name: String) -> Color {
+        switch name {
+        case "green": .green
+        case "orange": .orange
+        case "pink": .pink
+        case "purple": .purple
+        case "teal": .teal
+        case "red": .red
+        case "indigo": .indigo
+        default: .blue
+        }
+    }
+}
+
 /// White symbol on a rounded, colour-filled square, like the icons in the Settings app.
 struct CategoryIcon: View {
     let category: ExpenseCategory

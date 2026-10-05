@@ -68,7 +68,8 @@ enum RecurringScheduler {
                     date: date,
                     note: payment.note,
                     source: .recurring,
-                    isIncome: payment.isIncome
+                    isIncome: payment.isIncome,
+                    accountID: payment.accountID
                 ))
                 created += 1
             }

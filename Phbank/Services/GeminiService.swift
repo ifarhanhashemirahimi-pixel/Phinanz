@@ -89,9 +89,22 @@ struct GeminiService {
     static let defaultModel = "gemini-2.5-flash"
     static let maxInlineBytes = 18 * 1024 * 1024
 
+    static let privateSession: URLSession = {
+        let configuration = URLSessionConfiguration.ephemeral
+        configuration.urlCache = nil
+        configuration.httpCookieStorage = nil
+        configuration.httpShouldSetCookies = false
+        configuration.requestCachePolicy = .reloadIgnoringLocalAndRemoteCacheData
+        configuration.tlsMinimumSupportedProtocolVersion = .TLSv12
+        configuration.waitsForConnectivity = false
+        return URLSession(configuration: configuration)
+    }()
+
     let apiKey: String
     let model: String
-    var session: URLSession = .shared
+    /// Ephemeral: no response cache, cookies or credentials on disk — the
+    /// answers contain your financial data.
+    var session: URLSession = GeminiService.privateSession
     var now: Date = Date()
 
     // MARK: Public API

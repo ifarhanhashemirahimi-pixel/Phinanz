@@ -71,4 +71,37 @@ final class PhbankUITests: XCTestCase {
         let row = app.buttons.matching(NSPredicate(format: "label CONTAINS 'UITest Cafe'")).firstMatch
         XCTAssertTrue(row.waitForExistence(timeout: 5))
     }
+
+    @MainActor
+    func testCreatingASavingsGoal() throws {
+        let app = launchApp()
+        app.buttons["Plan"].firstMatch.tap()
+
+        let newGoal = app.buttons["new-goal"]
+        XCTAssertTrue(newGoal.waitForExistence(timeout: 5))
+        newGoal.tap()
+
+        let name = app.textFields["goal-name"]
+        XCTAssertTrue(name.waitForExistence(timeout: 5))
+        name.tap()
+        name.typeText("UITest Trip")
+
+        let target = app.textFields["goal-target"]
+        target.tap()
+        target.typeText("500")
+
+        app.buttons["save-goal"].tap()
+        let row = app.buttons.matching(NSPredicate(format: "label CONTAINS 'UITest Trip'")).firstMatch
+        XCTAssertTrue(row.waitForExistence(timeout: 5))
+    }
+
+    @MainActor
+    func testSecurityOverviewOpensFromSettings() throws {
+        let app = launchApp()
+        app.buttons["toolbar-settings"].tap()
+        let link = app.buttons["security-overview"]
+        XCTAssertTrue(link.waitForExistence(timeout: 5))
+        link.tap()
+        XCTAssertTrue(app.navigationBars["Security & Privacy"].waitForExistence(timeout: 5))
+    }
 }

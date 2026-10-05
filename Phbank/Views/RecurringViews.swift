@@ -105,6 +105,7 @@ struct RecurringEditorView: View {
     @State private var startDate: Date
     @State private var isActive: Bool
     @State private var note: String
+    @State private var accountID: String
 
     init(payment: RecurringPayment?) {
         self.payment = payment
@@ -116,6 +117,7 @@ struct RecurringEditorView: View {
         _startDate = State(initialValue: payment?.startDate ?? Calendar.current.startOfDay(for: Date()))
         _isActive = State(initialValue: payment?.isActive ?? true)
         _note = State(initialValue: payment?.note ?? "")
+        _accountID = State(initialValue: payment?.accountID ?? "")
     }
 
     private var amount: Double? {
@@ -166,6 +168,7 @@ struct RecurringEditorView: View {
                     }
                     DatePicker("Starts on", selection: $startDate, displayedComponents: .date)
                     Toggle("Active", isOn: $isActive)
+                    AccountPicker(accountID: $accountID)
                 } header: {
                     Text("Schedule")
                 } footer: {
@@ -214,6 +217,7 @@ struct RecurringEditorView: View {
             payment.startDate = startDate
             payment.isActive = isActive
             payment.note = cleanNote
+            payment.accountID = accountID
         } else {
             let created = RecurringPayment(
                 name: trimmedName,
@@ -222,7 +226,8 @@ struct RecurringEditorView: View {
                 isIncome: isIncome,
                 dayOfMonth: dayOfMonth,
                 startDate: startDate,
-                note: cleanNote
+                note: cleanNote,
+                accountID: accountID
             )
             created.isActive = isActive
             context.insert(created)

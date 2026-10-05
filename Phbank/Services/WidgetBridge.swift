@@ -18,6 +18,8 @@ struct WidgetSnapshot: Codable, Equatable {
     var balance: Double
     var budgetLimit: Double
     var updatedAt: Date
+    /// True when the user hid amounts in widgets; all numbers are zero then.
+    var isHidden: Bool? = nil
 
     static let appGroup = "group.Farhan.Phbank"
     static let key = "widgetSnapshot"
@@ -28,9 +30,14 @@ enum WidgetBridge {
         entries: [Expense],
         budgets: [CategoryBudget],
         startingBalance: Double,
+        hideAmounts: Bool = false,
         now: Date = Date(),
         calendar: Calendar = .current
     ) -> WidgetSnapshot {
+        if hideAmounts {
+            return WidgetSnapshot(todaySpent: 0, monthSpent: 0, monthIncome: 0, balance: 0,
+                                  budgetLimit: 0, updatedAt: now, isHidden: true)
+        }
         let today = calendar.dateInterval(of: .day, for: now) ?? DateInterval(start: now, duration: 86_400)
         let month = calendar.dateInterval(of: .month, for: now) ?? today
         let monthEntries = ExpenseStats.expenses(entries, in: month)
@@ -59,7 +66,9 @@ enum WidgetBridge {
     static func refresh(from context: ModelContext) {
         let entries = (try? context.fetch(FetchDescriptor<Expense>())) ?? []
         let budgets = (try? context.fetch(FetchDescriptor<CategoryBudget>())) ?? []
-        let starting = UserDefaults.standard.double(forKey: SettingsKeys.startingBalance)
-        publish(makeSnapshot(entries: entries, budgets: budgets, startingBalance: starting))
+        let accounts = (try? context.fetch(FetchDescriptor<Account>())) ?? []
+        let starting = accounts.reduce(0) { $0 + $1.openingBalance }
+        let hidden = UserDefaults.standard.bool(forKey: SettingsKeys.widgetHideAmounts)
+        publish(makeSnapshot(entries: entries, budgets: budgets, startingBalance: starting, hideAmounts: hidden))
     }
 }

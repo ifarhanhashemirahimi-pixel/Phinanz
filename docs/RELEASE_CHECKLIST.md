@@ -17,6 +17,9 @@
 - [ ] Privacy policy URL (required): states that data stays on device and what is sent to Google Gemini when AI import is used
 - [ ] App Privacy "nutrition label": financial info and audio/photos are collected only if the user enables AI import, and are sent to a third party (Google)
 - [ ] Permission texts reviewed (camera, microphone, Face ID, notifications)
+- [ ] `PrivacyInfo.xcprivacy` (app + widget) matches what the app does; App Privacy label says "Data Not Collected" unless AI import or iCloud changes that
+- [ ] Security checklist in `docs/SECURITY.md` gone through; the DEBUG snapshot renderer is not in the release build
+- [ ] Decide on iCloud sync: add the iCloud + Background Modes capabilities, or leave the switch disabled
 - [ ] Siri phrases, widgets and the Control Center control checked in all three languages
 - [ ] Export compliance: uses only standard OS encryption (HTTPS, Keychain)
 - [ ] Screenshots (6.9" and 6.5" iPhone), description, keywords (German + English)

@@ -21,7 +21,8 @@ struct SettingsView: View {
     @AppStorage(SettingsKeys.lockEnabled) private var lockEnabled = false
     @AppStorage(SettingsKeys.aiConsent) private var aiConsent = false
     @AppStorage(SettingsKeys.geminiModel) private var model = GeminiService.defaultModel
-    @AppStorage(SettingsKeys.startingBalance) private var startingBalance = 0.0
+    @AppStorage(SettingsKeys.widgetHideAmounts) private var widgetHideAmounts = false
+    @AppStorage(SettingsKeys.iCloudSync) private var iCloudSync = false
     @AppStorage(SettingsKeys.dailyReminder) private var dailyReminder = false
     @AppStorage(SettingsKeys.dailyReminderMinutes) private var dailyReminderMinutes = 20 * 60
     @AppStorage(SettingsKeys.paymentReminders) private var paymentReminders = false
@@ -30,10 +31,9 @@ struct SettingsView: View {
     @State private var backupURL: URL?
     @State private var showRestorePicker = false
     @State private var pendingRestore: BackupFile?
+    @State private var encryptedRestore: EncryptedFile?
     @State private var backupMessage: String?
-
-    @State private var balanceText = ""
-    @FocusState private var balanceFocused: Bool
+    @State private var showBackupSheet = false
     @State private var apiKeyInput = ""
     @State private var hasStoredKey = !(KeychainStore.get(SettingsKeys.apiKeyAccount) ?? "").isEmpty
     @State private var keyError: String?
@@ -63,10 +63,21 @@ struct SettingsView: View {
                         }
                     }
                 } else {
-                    lockEnabled = false
+                    // Turning the lock off needs Face ID too, so nobody else can.
+                    Task {
+                        if await AppLock.authenticate(reason: String(localized: "Turn off the PHINANZ lock")) {
+                            lockEnabled = false
+                        }
+                    }
                 }
             }
         )
+    }
+
+    /// A protected backup waiting for its password.
+    struct EncryptedFile: Identifiable {
+        let id = UUID()
+        let data: Data
     }
 
     var body: some View {
@@ -74,6 +85,7 @@ struct SettingsView: View {
             Form {
                 generalSection
                 securitySection
+                iCloudSection
                 remindersSection
                 aiSection
                 exportSection
@@ -83,7 +95,11 @@ struct SettingsView: View {
                 Section {
                     LabeledContent("Version", value: appVersion)
                 } footer: {
-                    Text("Your journal is stored only on this device.")
+                    if CloudSync.isActive {
+                        Text("Your journal is stored on this device and in your private iCloud.")
+                    } else {
+                        Text("Your journal is stored only on this device.")
+                    }
                 }
             }
             .navigationTitle("Settings")
@@ -93,11 +109,19 @@ struct SettingsView: View {
                     Button("Done") { dismiss() }
                 }
             }
-            .onAppear { balanceText = startingBalance == 0 ? "" : Money.input(startingBalance) }
-            .onChange(of: balanceFocused) { _, focused in if !focused { saveBalance() } }
-            .onDisappear(perform: saveBalance)
-            .fileImporter(isPresented: $showRestorePicker, allowedContentTypes: [.json]) { result in
+            .fileImporter(isPresented: $showRestorePicker, allowedContentTypes: [.json, .data]) { result in
                 loadBackup(result)
+            }
+            .sheet(isPresented: $showBackupSheet) {
+                BackupSheet { url in
+                    backupURL = url
+                    backupMessage = nil
+                }
+            }
+            .sheet(item: $encryptedRestore) { file in
+                RestorePasswordSheet(data: file.data) { backup in
+                    pendingRestore = backup
+                }
             }
             .confirmationDialog(
                 "Replace your journal with this backup?",
@@ -108,18 +132,18 @@ struct SettingsView: View {
                 Button("Cancel", role: .cancel) { pendingRestore = nil }
             } message: {
                 if let pendingRestore {
-                    Text("The backup from \(pendingRestore.exportedAt.formatted(date: .abbreviated, time: .shortened)) contains \(pendingRestore.entries.count) entries. Your current entries will be replaced.")
+                    Text("The backup from \(pendingRestore.exportedAt.formatted(date: .abbreviated, time: .shortened)) contains \(pendingRestore.entries.count) entries. Your current data will be replaced.")
                 }
             }
             .confirmationDialog(
-                "Delete all \(expenses.count) entries?",
+                "Delete all data?",
                 isPresented: $confirmWipe,
                 titleVisibility: .visible
             ) {
-                Button("Delete Everything", role: .destructive, action: wipe)
+                Button("Delete Everything", role: .destructive) { Task { await wipe() } }
                 Button("Cancel", role: .cancel) {}
             } message: {
-                Text("This cannot be undone.")
+                Text("Entries, accounts, transfers, budgets, recurring payments and savings goals are deleted. This cannot be undone.")
             }
         }
     }
@@ -134,14 +158,10 @@ struct SettingsView: View {
                 SettingsLabel(title: "Currency", systemName: "eurosign", color: .green)
             }
 
-            LabeledContent {
-                TextField("0,00", text: $balanceText)
-                    .keyboardType(.numbersAndPunctuation)
-                    .multilineTextAlignment(.trailing)
-                    .focused($balanceFocused)
-                    .onSubmit(saveBalance)
+            NavigationLink {
+                AccountsListView()
             } label: {
-                SettingsLabel(title: "Starting Balance", systemName: "building.columns.fill", color: .indigo)
+                SettingsLabel(title: "Accounts", systemName: "building.columns.fill", color: .indigo)
             }
 
             Button {
@@ -157,7 +177,7 @@ struct SettingsView: View {
             }
             .foregroundStyle(.primary)
         } footer: {
-            Text("The starting balance is what was in your account before your first entry. Change the language in the iOS Settings app (English, Deutsch, فارسی).")
+            Text("Change the language in the iOS Settings app (English, Deutsch, فارسی).")
         }
     }
 
@@ -167,11 +187,45 @@ struct SettingsView: View {
                 SettingsLabel(title: "Face ID Lock", systemName: "faceid", color: .green)
             }
             .disabled(!lockAvailable)
+            .accessibilityIdentifier("toggle-lock")
+            Toggle(isOn: $widgetHideAmounts) {
+                SettingsLabel(title: "Hide Amounts in Widgets", systemName: "eye.slash.fill", color: .gray)
+            }
+            NavigationLink {
+                SecurityOverviewView()
+            } label: {
+                SettingsLabel(title: "Security & Privacy", systemName: "lock.shield.fill", color: .blue)
+            }
+            .accessibilityIdentifier("security-overview")
+        } header: {
+            Text("Security")
         } footer: {
             if lockAvailable {
                 Text("Locks the journal whenever you leave the app. Uses Face ID or Touch ID, with your device passcode as backup.")
             } else {
                 Text("Set a device passcode in the iOS Settings app to use the lock.")
+            }
+        }
+    }
+
+    private var iCloudSection: some View {
+        Section {
+            Toggle(isOn: $iCloudSync) {
+                SettingsLabel(title: "iCloud Sync", systemName: "icloud.fill", color: .blue)
+            }
+            .disabled(!CloudSync.isAvailable)
+            if CloudSync.restartNeeded {
+                Label("Close and reopen PHINANZ to apply.", systemImage: "arrow.clockwise")
+                    .font(.footnote)
+                    .foregroundStyle(.orange)
+            }
+        } header: {
+            Text("iCloud")
+        } footer: {
+            if CloudSync.isAvailable {
+                Text("Keeps your journal in sync on your iPhone and iPad through your private iCloud database. Apple encrypts it; with Advanced Data Protection only your devices can read it.")
+            } else {
+                Text("iCloud sync needs the iCloud capability, which comes with the Apple Developer Program. Until then everything stays on this device.")
             }
         }
     }
@@ -200,9 +254,12 @@ struct SettingsView: View {
 
     private var backupSection: some View {
         Section {
-            Button(action: prepareBackup) {
+            Button {
+                showBackupSheet = true
+            } label: {
                 SettingsLabel(title: "Back Up Journal", systemName: "externaldrive.fill", color: .blue)
             }
+            .accessibilityIdentifier("backup-journal")
             .foregroundStyle(.primary)
             if let backupURL {
                 ShareLink(item: backupURL) {
@@ -223,7 +280,7 @@ struct SettingsView: View {
         } header: {
             Text("Backup")
         } footer: {
-            Text("Keep the backup file in iCloud Drive or the Files app. Restoring replaces everything in your journal.")
+            Text("Keep the backup file in iCloud Drive or the Files app. Protect it with a password. Restoring replaces everything in your journal.")
         }
     }
 
@@ -303,7 +360,7 @@ struct SettingsView: View {
             Button(role: .destructive) {
                 confirmWipe = true
             } label: {
-                SettingsLabel(title: "Delete All Entries", systemName: "trash.fill", color: .red)
+                SettingsLabel(title: "Delete All Data", systemName: "trash.fill", color: .red)
             }
             .foregroundStyle(.red)
         }
@@ -354,24 +411,20 @@ struct SettingsView: View {
         )
     }
 
-    private func prepareBackup() {
-        do {
-            backupURL = try BackupService.writeBackup(from: context, startingBalance: startingBalance)
-            backupMessage = nil
-        } catch {
-            backupURL = nil
-            backupMessage = String(localized: "Backup failed: \(error.localizedDescription)")
-        }
-    }
-
     private func loadBackup(_ result: Result<URL, Error>) {
         switch result {
         case .success(let url):
             let scoped = url.startAccessingSecurityScopedResource()
             defer { if scoped { url.stopAccessingSecurityScopedResource() } }
             do {
+                let size = (try? url.resourceValues(forKeys: [.fileSizeKey]).fileSize) ?? 0
+                guard size <= BackupService.maxFileSize else { throw BackupError.tooLarge }
                 let data = try Data(contentsOf: url)
-                pendingRestore = try BackupService.decode(data)
+                if BackupCrypto.isEncrypted(data) {
+                    encryptedRestore = EncryptedFile(data: data)
+                } else {
+                    pendingRestore = try BackupService.decode(data)
+                }
             } catch {
                 backupMessage = error.localizedDescription
             }
@@ -385,26 +438,11 @@ struct SettingsView: View {
         pendingRestore = nil
         do {
             let summary = try BackupService.restore(backup, into: context)
-            balanceText = startingBalance == 0 ? "" : Money.input(startingBalance)
             backupMessage = String(localized: "Restored \(summary.entries) entries, \(summary.budgets) budgets and \(summary.recurring) recurring payments.")
             WidgetBridge.refresh(from: context)
             Task { await NotificationScheduler.refresh(context: context) }
         } catch {
             backupMessage = String(localized: "Restore failed: \(error.localizedDescription)")
-        }
-    }
-
-    private func saveBalance() {
-        let trimmed = balanceText.trimmingCharacters(in: .whitespacesAndNewlines)
-        if trimmed.isEmpty {
-            startingBalance = 0
-            return
-        }
-        // Allow a negative starting balance (overdraft), e.g. "-120,50".
-        let negative = trimmed.hasPrefix("-") || trimmed.hasPrefix("−")
-        let digits = negative ? String(trimmed.dropFirst()) : trimmed
-        if let value = Money.parse(digits) {
-            startingBalance = negative ? -value : value
         }
     }
 
@@ -429,10 +467,24 @@ struct SettingsView: View {
         }
     }
 
-    private func wipe() {
+    /// Deletes everything. With the lock on, Face ID confirms it is really you.
+    private func wipe() async {
+        if lockEnabled, !(await AppLock.authenticate(reason: String(localized: "Delete all PHINANZ data"))) {
+            return
+        }
         try? context.delete(model: Expense.self)
+        try? context.delete(model: CategoryBudget.self)
+        try? context.delete(model: RecurringPayment.self)
+        try? context.delete(model: Transfer.self)
+        try? context.delete(model: SavingsGoal.self)
+        try? context.delete(model: Account.self)
         try? context.save()
+        UserDefaults.standard.removeObject(forKey: SettingsKeys.startingBalance)
+        AccountStore.ensurePrimaryAccount(in: context)
         exportURL = nil
+        backupURL = nil
+        WidgetBridge.refresh(from: context)
+        await NotificationScheduler.refresh(context: context)
     }
 
     private var appVersion: String {

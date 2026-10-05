@@ -18,8 +18,12 @@ struct PhbankApp: App {
     private let container: ModelContainer
 
     init() {
+        #if DEBUG
+        DebugFlags.applyLanguageRequest()
+        #endif
         container = Persistence.shared
-        let uiTesting = AppEnvironment.isUITest
+        DataProtection.removeTemporaryExports()
+        let uiTesting = AppEnvironment.isUITest || AppEnvironment.isDemo
         if !uiTesting {
             try? Tips.configure([.displayFrequency(.immediate)])
         }
@@ -27,18 +31,18 @@ struct PhbankApp: App {
         _lock = State(initialValue: AppLock(startLocked: startLocked))
     }
 
+    private var shieldVisible: Bool {
+        lock.isLocked || (lockEnabled && scenePhase != .active && !AppEnvironment.isUITest)
+    }
+
     var body: some Scene {
         WindowGroup {
-            ZStack {
-                ContentView()
-                    .environment(lock)
-
-                // Full lock screen, or just a privacy cover while the app is inactive
-                // (app switcher snapshot).
-                if lock.isLocked || (lockEnabled && scenePhase != .active) {
-                    LockScreenView(lock: lock)
-                        .transition(.opacity)
-                }
+            ContentView()
+                .environment(lock)
+            // Full lock screen, or just a privacy cover while the app is inactive
+            // (app switcher snapshot). Lives in its own window above sheets and alerts.
+            .onChange(of: shieldVisible, initial: true) { _, visible in
+                PrivacyShield.shared.update(visible: visible, lock: lock)
             }
             .task {
                 if lock.isLocked { await lock.unlock() }
@@ -46,12 +50,14 @@ struct PhbankApp: App {
             #if DEBUG
             .task {
                 await SnapshotRenderer.runIfRequested()
+                await DemoTour.runIfRequested(lock: lock)
             }
             #endif
             .onChange(of: scenePhase) { _, phase in
                 switch phase {
                 case .background:
                     lock.lockIfNeeded(enabled: lockEnabled && !AppEnvironment.isUITest)
+                    DataProtection.removeTemporaryExports()
                 case .active:
                     if lock.isLocked { Task { await lock.unlock() } }
                 default:

@@ -22,6 +22,8 @@ final class RecurringPayment {
     var lastGenerated: Date?
     var isActive: Bool = true
     var note: String = ""
+    /// `Account.id`; empty means the main account.
+    var accountID: String = ""
 
     init(
         name: String,
@@ -30,7 +32,8 @@ final class RecurringPayment {
         isIncome: Bool = false,
         dayOfMonth: Int,
         startDate: Date = Date(),
-        note: String = ""
+        note: String = "",
+        accountID: String = ""
     ) {
         self.name = name
         self.amount = amount
@@ -39,6 +42,7 @@ final class RecurringPayment {
         self.dayOfMonth = min(max(dayOfMonth, 1), 31)
         self.startDate = startDate
         self.note = note
+        self.accountID = accountID
     }
 
     var category: ExpenseCategory {
@@ -48,5 +52,8 @@ final class RecurringPayment {
 }
 
 enum AppSchema {
-    static let models: [any PersistentModel.Type] = [Expense.self, CategoryBudget.self, RecurringPayment.self]
+    static let models: [any PersistentModel.Type] = [
+        Expense.self, CategoryBudget.self, RecurringPayment.self,
+        Account.self, Transfer.self, SavingsGoal.self
+    ]
 }

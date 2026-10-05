@@ -81,4 +81,13 @@ enum Money {
         guard let value = Double(s), value.isFinite, value >= 0 else { return nil }
         return roundCents(value)
     }
+
+    /// Like `parse`, but accepts a leading minus ("-250", "−1.200,00") for balances.
+    static func parseSigned(_ text: String) -> Double? {
+        let trimmed = text.trimmingCharacters(in: .whitespacesAndNewlines)
+        let negative = trimmed.hasPrefix("-") || trimmed.hasPrefix("−")
+        let rest = negative ? String(trimmed.dropFirst()) : trimmed
+        guard let value = parse(rest) else { return nil }
+        return negative ? -value : value
+    }
 }

@@ -38,7 +38,7 @@ final class VoiceRecorder {
             try session.setActive(true)
 
             let url = FileManager.default.temporaryDirectory
-                .appendingPathComponent("voice-\(UUID().uuidString).wav")
+                .appendingPathComponent("\(DataProtection.exportPrefix)voice-\(UUID().uuidString).wav")
             let settings: [String: Any] = [
                 AVFormatIDKey: Int(kAudioFormatLinearPCM),
                 AVSampleRateKey: 16_000,

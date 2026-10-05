@@ -49,7 +49,7 @@ struct DraftExpense: Identifiable, Equatable {
         !store.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty && amount != nil
     }
 
-    func makeExpense() -> Expense? {
+    func makeExpense(accountID: String = "") -> Expense? {
         guard isValid, let amount else { return nil }
         return Expense(
             store: String(store.trimmingCharacters(in: .whitespacesAndNewlines).prefix(80)),
@@ -58,7 +58,8 @@ struct DraftExpense: Identifiable, Equatable {
             date: date,
             note: note.trimmingCharacters(in: .whitespacesAndNewlines),
             source: source,
-            isIncome: isIncome
+            isIncome: isIncome,
+            accountID: accountID
         )
     }
 

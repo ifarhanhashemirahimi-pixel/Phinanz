@@ -64,9 +64,27 @@ The app writes a `WidgetSnapshot` (today, month spending, month income, balance,
 - **Control:** `NewEntryControl` (widget extension) uses an `OpenURLIntent` with `phinanz://add`.
 - **Persistence:** `Persistence.shared` is the single `ModelContainer` used by the app and intents; UI tests get an in-memory store with sample data.
 
+## Accounts
+
+`Account` (checking, cash, credit card, savings) has an opening balance and a sort order; the first one is the main account. `Expense.accountID` and `RecurringPayment.accountID` point to an account by id — an empty or unknown id means the main account, so entries from Siri, widgets and older versions always land somewhere sensible. `Transfer` moves money between two accounts and is ignored by spending/income statistics. `AccountLedger` computes balances; the total is simply all opening balances plus income minus spending, because transfers cancel out. Deleting an account moves its entries, payments and opening balance to the main account and re-routes its transfers. On the first launch after the update `AccountStore` creates the main account from the old single "starting balance" setting.
+
+Ids instead of SwiftData relationships keep the models CloudKit-compatible (CloudKit needs optional relationships and no unique constraints) and make backups simple.
+
+## Savings goals
+
+`SavingsGoal` stores target, saved amount, optional deadline, symbol and colour. `SavingsPlanner` turns that into progress, remaining amount and a monthly amount: the remaining money divided by the months left (a started month counts), rounded up to the cent. Goals are envelopes: adding money does not book an entry; a transfer to the savings account can mirror it in the bank.
+
+## Monthly report
+
+`ReportBuilder` compares a month with the one before: spending, income, net, savings rate, daily average (days so far for the running month), fixed costs (entries booked by recurring payments), categories with deltas, top stores, budgets over limit, the biggest expense. A short list of rule-based insights is generated from those numbers — no AI and no network. `ReportPDF` renders the same SwiftUI cards into an A4 PDF with `ImageRenderer`.
+
+## iCloud sync
+
+`Persistence` opens the store with `cloudKitDatabase: .private(CloudSync.containerID)` only when the user switched sync on **and** the provisioning profile grants CloudKit (`CloudSync` reads `embedded.mobileprovision`). Otherwise it stays local and never calls CloudKit. If opening with CloudKit fails, it falls back to the local store. Changing the switch takes effect after a restart.
+
 ## Backup
 
-`BackupService` writes a versioned JSON file (`BackupFile`, version 1) with all entries, budgets and recurring payments. Restore checks the version and sanitises every row (amount limits, text length, known categories), then replaces all current data with the backup's content in one save. The UI asks for confirmation first and reports how many entries, budgets and payments were restored.
+`BackupService` writes a versioned JSON file (`BackupFile`, version 2: + accounts, transfers, goals; version 1 files still restore) — optionally encrypted by `BackupCrypto` (PBKDF2-SHA256 600k → AES-256-GCM, see `docs/SECURITY.md`). Restore checks the version and sanitises every row (amount limits, text length, known categories), then replaces all current data with the backup's content in one save. The UI asks for confirmation first and reports how many entries, budgets and payments were restored.
 
 ## Reminders
 
@@ -89,6 +107,8 @@ String Catalogs (`Localizable.xcstrings`, `InfoPlist.xcstrings`, and one in the 
 1. PSD2 account information via a licensed aggregator (for personal use e.g. Enable Banking's restricted mode). Needs a small backend that holds the aggregator's private key; the app only talks to that backend. Publishing to other users requires a BaFin licence or a contract with a licensed provider.
 
 ## Security and privacy notes
+
+See `docs/SECURITY.md` for the full threat model. In short:
 
 - Lock: shown on launch and after the app enters the background; a privacy cover hides content while the app is inactive. Sheets are dismissed on lock.
 - Recordings are written to the temporary directory and deleted after upload or when the sheet closes.

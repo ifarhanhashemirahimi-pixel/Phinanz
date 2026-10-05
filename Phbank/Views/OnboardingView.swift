@@ -11,7 +11,7 @@ import SwiftUI
 struct OnboardingView: View {
     var onFinish: () -> Void
 
-    @AppStorage(SettingsKeys.startingBalance) private var startingBalance = 0.0
+    @Environment(\.modelContext) private var context
     @AppStorage(SettingsKeys.lockEnabled) private var lockEnabled = false
 
     @State private var step = 0
@@ -113,7 +113,7 @@ struct OnboardingView: View {
                         SettingsLabel(title: "Face ID Lock", systemName: "faceid", color: .green)
                     }
                 } footer: {
-                    Text("Locks the journal whenever you leave the app.")
+                    Text("Recommended. Locks the journal whenever you leave the app.")
                 }
             }
         }
@@ -143,10 +143,10 @@ struct OnboardingView: View {
             step = 1
             return
         }
-        let trimmed = balanceText.trimmingCharacters(in: .whitespacesAndNewlines)
-        let negative = trimmed.hasPrefix("-") || trimmed.hasPrefix("−")
-        if let value = Money.parse(negative ? String(trimmed.dropFirst()) : trimmed) {
-            startingBalance = negative ? -value : value
+        // The balance becomes the opening balance of the main account.
+        if let value = Money.parseSigned(balanceText), let account = AccountStore.ensurePrimaryAccount(in: context) {
+            account.openingBalance = Money.roundCents(value)
+            try? context.save()
         }
         onFinish()
     }

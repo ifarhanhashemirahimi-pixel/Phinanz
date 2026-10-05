@@ -17,6 +17,7 @@ struct ReviewDraftsView: View {
     var onSaved: (Date) -> Void
 
     @State private var checkedDuplicates = false
+    @State private var accountID = UserDefaults.standard.string(forKey: SettingsKeys.lastAccountID) ?? ""
 
     private var saveCount: Int {
         importer.drafts.filter { $0.include && $0.isValid }.count
@@ -41,6 +42,7 @@ struct ReviewDraftsView: View {
                         }
                         .font(.footnote)
                     }
+                    AccountPicker(accountID: $accountID)
                     if importer.drafts.count > 3 {
                         Button(allIncluded ? "Deselect All" : "Select All") {
                             let include = !allIncluded
@@ -78,6 +80,11 @@ struct ReviewDraftsView: View {
                 }
             }
             .onAppear(perform: markDuplicates)
+            #if DEBUG
+            .onReceive(DemoDirector.shared.commands) { command in
+                if case .saveReview = command { save() }
+            }
+            #endif
         }
         .interactiveDismissDisabled()
     }
@@ -97,7 +104,7 @@ struct ReviewDraftsView: View {
     }
 
     private func save() {
-        let toSave = importer.drafts.filter(\.include).compactMap { $0.makeExpense() }
+        let toSave = importer.drafts.filter(\.include).compactMap { $0.makeExpense(accountID: accountID) }
         guard !toSave.isEmpty else { return }
         for expense in toSave { context.insert(expense) }
         try? context.save()

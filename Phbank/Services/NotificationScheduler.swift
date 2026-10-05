@@ -66,7 +66,8 @@ enum NotificationScheduler {
                     content.title = payment.isIncome
                         ? String(localized: "Income expected tomorrow")
                         : String(localized: "Payment due tomorrow")
-                    content.body = "\(payment.name) · \(Money.format(payment.amount))"
+                    // No amount on the Lock Screen: the name is enough of a reminder.
+                    content.body = payment.name
                     content.sound = .default
                     let components = calendar.dateComponents([.year, .month, .day, .hour, .minute], from: reminder)
                     let trigger = UNCalendarNotificationTrigger(dateMatching: components, repeats: false)

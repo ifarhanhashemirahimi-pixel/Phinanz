@@ -14,6 +14,8 @@ struct WidgetSnapshot: Codable, Equatable {
     var balance: Double
     var budgetLimit: Double
     var updatedAt: Date
+    /// True when the user hid amounts in widgets; all numbers are zero then.
+    var isHidden: Bool? = nil
 
     static let appGroup = "group.Farhan.Phbank"
     static let key = "widgetSnapshot"

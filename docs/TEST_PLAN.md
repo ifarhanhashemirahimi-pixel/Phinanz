@@ -20,8 +20,12 @@ Most risk sits in pure logic (money parsing, date handling, AI output) and in a 
 | Backup and restore | Unit | `BackupTests` | Round trip, version check, invalid rows dropped |
 | Reminders and deep links | Unit | `ReminderTests` | Evening-before dates, horizon, `phinanz://` URLs |
 | Category suggestions | Unit | `CategorySuggesterTests` | History wins, German merchant keywords, unknown stores |
+| Accounts and transfers | Unit | `AccountLedgerTests` | Balances, unknown ids, total, deleting an account, migration of the old starting balance |
+| Savings goals | Unit | `SavingsPlannerTests` | Monthly amount, started months, reached, overdue |
+| Monthly report | Unit | `MonthlyReportTests` | Comparison, savings rate, fixed costs, insights, running month average |
+| Backup encryption, v2 backups, widget privacy, iCloud detection | Unit | `BackupCryptoTests` | Round trip, wrong password, tampering, short passwords, random salt, v1 → main account, hidden widget numbers, provisioning-profile parsing |
 | Bank CSV import | Unit | `BankCSVImporterTests` | Sparkasse, ING, DKB, N26, Commerzbank-style and Soll/Haben layouts, encodings, quoting, signs |
-| Launch, tab bar, settings, add entry | UI | `PhbankUITests` | Critical happy paths |
+| Launch, tab bar, settings, add entry, savings goal, security overview | UI | `PhbankUITests` | Critical happy paths |
 | Camera, microphone, Face ID, real Gemini call | Manual | below | Hardware or secrets required |
 
 Coverage goal: 90 %+ of `Services/` and `Models/`, UI covered by flows rather than percentages. Skip tests for trivial getters and framework behaviour.
@@ -43,7 +47,11 @@ Coverage goal: 90 %+ of `Services/` and `Models/`, UI covered by flows rather th
 13. **Siri & Shortcuts**: "Add an expense in PHINANZ" in all three languages; the Shortcuts app lists the actions; Spotlight shows them.
 14. **Control Center**: add the "New Entry" control; tapping it opens the editor for today.
 15. **Bank CSV**: export the last month from your own bank and import it; check dates, signs, store names and categories; import the same file again → every row is marked as a duplicate and switched off.
-16. **iPad**: the tab bar turns into a sidebar; sheets and the editor fit.
+16. **Security**: turn the lock on, open a sheet, go to the home screen → the app switcher shows the cover, not the sheet; open `phinanz://add` from Safari while locked → editor appears only after Face ID; ask Siri for today's spending on a locked phone → it asks to unlock.
+17. **Encrypted backup**: back up with a password, restore with a wrong password (error), then the right one; open the file in a text editor → no readable text.
+18. **Accounts**: add cash and savings accounts, transfer 100 € from checking to cash → total unchanged, both balances move; delete the cash account → entries land in the main account.
+19. **Monthly report**: compare two months, create the PDF, open it in Files.
+20. **iPad**: the tab bar turns into a sidebar; sheets and the editor fit.
 
 ## Visual QA with the snapshot renderer
 

@@ -33,6 +33,8 @@ enum CategoryAppEnum: String, AppEnum {
 
 struct AddExpenseIntent: AppIntent {
     static let title: LocalizedStringResource = "Add Expense"
+    /// Your finances: Siri asks for Face ID / the passcode first when the iPhone is locked.
+    static let authenticationPolicy: IntentAuthenticationPolicy = .requiresAuthentication
     static let description = IntentDescription("Adds an expense to today's page in PHINANZ.")
 
     @Parameter(title: "Amount", description: "Amount in euros")
@@ -70,6 +72,8 @@ struct AddExpenseIntent: AppIntent {
 
 struct TodaySpendingIntent: AppIntent {
     static let title: LocalizedStringResource = "Today's Spending"
+    /// Your finances: Siri asks for Face ID / the passcode first when the iPhone is locked.
+    static let authenticationPolicy: IntentAuthenticationPolicy = .requiresAuthentication
     static let description = IntentDescription("Tells you how much you have spent today.")
 
     @MainActor
@@ -84,6 +88,8 @@ struct TodaySpendingIntent: AppIntent {
 
 struct MonthSpendingIntent: AppIntent {
     static let title: LocalizedStringResource = "This Month's Spending"
+    /// Your finances: Siri asks for Face ID / the passcode first when the iPhone is locked.
+    static let authenticationPolicy: IntentAuthenticationPolicy = .requiresAuthentication
     static let description = IntentDescription("Tells you how much you have spent this month.")
 
     @MainActor
@@ -98,6 +104,8 @@ struct MonthSpendingIntent: AppIntent {
 
 struct NewEntryIntent: AppIntent {
     static let title: LocalizedStringResource = "New Entry"
+    /// Your finances: Siri asks for Face ID / the passcode first when the iPhone is locked.
+    static let authenticationPolicy: IntentAuthenticationPolicy = .requiresAuthentication
     static let description = IntentDescription("Opens PHINANZ with a new entry for today.")
     static let openAppWhenRun = true
 

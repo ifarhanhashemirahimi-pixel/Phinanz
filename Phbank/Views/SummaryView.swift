@@ -7,6 +7,7 @@
 //
 
 import SwiftUI
+import SwiftData
 import Charts
 
 struct SummaryView: View {
@@ -24,7 +25,8 @@ struct SummaryView: View {
 
     let expenses: [Expense]
     @Binding var activeSheet: ActiveSheet?
-    @AppStorage(SettingsKeys.startingBalance) private var startingBalance = 0.0
+    @Query private var accounts: [Account]
+    @Query private var budgets: [CategoryBudget]
 
     @State private var scope: Scope = .month
     @State private var anchor = Date()
@@ -51,7 +53,7 @@ struct SummaryView: View {
     private var net: Double { Money.roundCents(earned - spent) }
     private var categories: [CategoryTotal] { ExpenseStats.byCategory(periodEntries) }
     private var topStores: [StoreTotal] { ExpenseStats.topStores(periodEntries) }
-    private var balance: Double { ExpenseStats.balance(starting: startingBalance, entries: expenses) }
+    private var balance: Double { AccountLedger.total(accounts: accounts, entries: expenses) }
 
     private var dayCount: Int {
         calendar.dateComponents([.day], from: interval.start, to: interval.end).day ?? 1
@@ -119,6 +121,7 @@ struct SummaryView: View {
                     .pickerStyle(.segmented)
 
                     periodBar
+                    reportLink
                     spendingCard
                     tiles
                     if !categories.isEmpty { categoriesCard }
@@ -160,6 +163,32 @@ struct SummaryView: View {
             .accessibilityLabel(Text("Next Period"))
         }
         .fontWeight(.semibold)
+    }
+
+    /// Opens the monthly report for the month on screen (or this month).
+    private var reportLink: some View {
+        NavigationLink {
+            MonthlyReportView(expenses: expenses, budgets: budgets, month: scope == .year ? Date() : anchor)
+        } label: {
+            HStack(spacing: 12) {
+                SettingsIcon(systemName: "doc.text.magnifyingglass", color: .indigo, size: 36)
+                VStack(alignment: .leading, spacing: 2) {
+                    Text("Monthly Report")
+                        .font(.headline)
+                        .foregroundStyle(Color.primary)
+                    Text("Compare months, see insights, share as PDF")
+                        .font(.subheadline)
+                        .foregroundStyle(Color.secondary)
+                }
+                Spacer()
+                Image(systemName: "chevron.forward")
+                    .font(.footnote.weight(.semibold))
+                    .foregroundStyle(.tertiary)
+            }
+            .card()
+        }
+        .buttonStyle(.plain)
+        .accessibilityIdentifier("open-report")
     }
 
     private var spendingCard: some View {

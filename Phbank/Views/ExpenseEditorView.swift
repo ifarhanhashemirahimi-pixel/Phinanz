@@ -22,6 +22,7 @@ struct ExpenseEditorView: View {
     @State private var category: ExpenseCategory
     @State private var date: Date
     @State private var note: String
+    @State private var accountID: String
     @State private var confirmDelete = false
     @State private var budgetMessage: String?
     @State private var savedCount = 0
@@ -37,6 +38,7 @@ struct ExpenseEditorView: View {
         _category = State(initialValue: expense?.category ?? .other)
         _date = State(initialValue: expense?.date ?? defaultDate)
         _note = State(initialValue: expense?.note ?? "")
+        _accountID = State(initialValue: expense?.accountID ?? UserDefaults.standard.string(forKey: SettingsKeys.lastAccountID) ?? "")
     }
 
     private var parsedAmount: Double? {
@@ -116,6 +118,8 @@ struct ExpenseEditorView: View {
                     .pickerStyle(.navigationLink)
 
                     DatePicker("Date", selection: $date)
+
+                    AccountPicker(accountID: $accountID)
                 }
 
                 Section("Note") {
@@ -149,8 +153,19 @@ struct ExpenseEditorView: View {
                 }
             }
             .onAppear {
-                if expense == nil && amountText.isEmpty { amountFocused = true }
+                // The demo recorder can't capture the keyboard, so it types without focus.
+                if expense == nil && amountText.isEmpty && !AppEnvironment.isDemo { amountFocused = true }
             }
+            #if DEBUG
+            .onReceive(DemoDirector.shared.commands) { command in
+                switch command {
+                case .typeAmount(let text): amountText = text
+                case .typeStore(let text): store = text
+                case .saveEditor: save()
+                default: break
+                }
+            }
+            #endif
             .onChange(of: isIncome) { _, income in
                 if category.isIncome != income {
                     category = income ? .salary : .other
@@ -212,6 +227,7 @@ struct ExpenseEditorView: View {
             expense.date = date
             expense.note = cleanNote
             expense.isIncome = isIncome
+            expense.accountID = accountID
         } else {
             context.insert(Expense(
                 store: trimmedStore,
@@ -219,8 +235,11 @@ struct ExpenseEditorView: View {
                 category: category,
                 date: date,
                 note: cleanNote,
-                isIncome: isIncome
+                isIncome: isIncome,
+                accountID: accountID
             ))
+            // New entries start in the account you used last.
+            UserDefaults.standard.set(accountID, forKey: SettingsKeys.lastAccountID)
         }
         try? context.save()
         savedCount += 1

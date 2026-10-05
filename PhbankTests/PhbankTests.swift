@@ -730,3 +730,305 @@ struct BankCSVImporterTests {
         #expect(rows == [["a", "b;c", "say \"hi\""], ["d", "e", "f"], ["g", "h", "i"]])
     }
 }
+
+// MARK: - Accounts
+
+@MainActor
+struct AccountLedgerTests {
+    @Test func balancesFollowEntriesAndTransfers() throws {
+        let container = try makeContainer()
+        let context = container.mainContext
+        let checking = Account(name: "Giro", kind: .checking, openingBalance: 1_000, sortOrder: 0)
+        let cash = Account(name: "Bargeld", kind: .cash, openingBalance: 20, sortOrder: 1)
+        context.insert(checking)
+        context.insert(cash)
+        let entries = [
+            Expense(store: "Gehalt", amount: 2_000, category: .salary, date: utcDate(2026, 10, 1), isIncome: true, accountID: checking.id),
+            Expense(store: "Bäcker", amount: 5, category: .food, date: utcDate(2026, 10, 2), accountID: cash.id),
+            // Unknown or empty ids belong to the main account.
+            Expense(store: "Alt", amount: 100, category: .other, date: utcDate(2026, 10, 2), accountID: ""),
+            Expense(store: "Gelöscht", amount: 50, category: .other, date: utcDate(2026, 10, 2), accountID: "gone")
+        ]
+        let transfers = [Transfer(from: checking.id, to: cash.id, amount: 100, date: utcDate(2026, 10, 3))]
+        let accounts = [checking, cash]
+        let now = utcDate(2026, 10, 5)
+
+        #expect(AccountLedger.primary(accounts)?.id == checking.id)
+        #expect(AccountLedger.balance(of: checking, accounts: accounts, entries: entries, transfers: transfers, upTo: now) == 2_750)
+        #expect(AccountLedger.balance(of: cash, accounts: accounts, entries: entries, transfers: transfers, upTo: now) == 115)
+        // Transfers cancel out in the total.
+        #expect(AccountLedger.total(accounts: accounts, entries: entries, upTo: now) == 2_865)
+        let balances = AccountLedger.balances(accounts: accounts, entries: entries, transfers: transfers, upTo: now)
+        #expect(balances.map { $0.name } == ["Giro", "Bargeld"])
+    }
+
+    @Test func mainAccountTakesOverTheOldStartingBalance() throws {
+        let container = try makeContainer()
+        let defaults = try #require(UserDefaults(suiteName: "phinanz-tests-\(UUID().uuidString)"))
+        defaults.set(345.5, forKey: SettingsKeys.startingBalance)
+        let account = try #require(AccountStore.ensurePrimaryAccount(in: container.mainContext, defaults: defaults))
+        #expect(account.openingBalance == 345.5)
+        // A second call keeps the same account.
+        let again = AccountStore.ensurePrimaryAccount(in: container.mainContext, defaults: defaults)
+        #expect(again?.id == account.id)
+        #expect(try container.mainContext.fetch(FetchDescriptor<Account>()).count == 1)
+    }
+
+    @Test func deletingAnAccountMovesEverythingToTheMainAccount() throws {
+        let container = try makeContainer()
+        let context = container.mainContext
+        let main = Account(name: "Giro", kind: .checking, openingBalance: 100, sortOrder: 0)
+        let cash = Account(name: "Bargeld", kind: .cash, openingBalance: 30, sortOrder: 1)
+        let savings = Account(name: "Spar", kind: .savings, openingBalance: 0, sortOrder: 2)
+        for account in [main, cash, savings] { context.insert(account) }
+        context.insert(Expense(store: "Kiosk", amount: 4, category: .food, date: utcDate(2026, 10, 1), accountID: cash.id))
+        context.insert(Transfer(from: main.id, to: cash.id, amount: 50, date: utcDate(2026, 10, 1)))
+        context.insert(Transfer(from: cash.id, to: savings.id, amount: 20, date: utcDate(2026, 10, 2)))
+        try context.save()
+
+        AccountStore.delete(cash, in: context)
+
+        let accounts = try context.fetch(FetchDescriptor<Account>())
+        let entries = try context.fetch(FetchDescriptor<Expense>())
+        let transfers = try context.fetch(FetchDescriptor<Transfer>())
+        #expect(accounts.count == 2)
+        #expect(entries.allSatisfy { $0.accountID == main.id })
+        #expect(transfers.count == 1) // main → main was dropped, cash → savings now comes from main
+        #expect(transfers.first?.fromAccountID == main.id)
+        #expect(main.openingBalance == 130)
+        // Savings keeps its 20 €.
+        let now = utcDate(2026, 10, 5)
+        #expect(AccountLedger.balance(of: savings, accounts: accounts, entries: entries, transfers: transfers, upTo: now) == 20)
+        #expect(AccountLedger.total(accounts: accounts, entries: entries, upTo: now) == 126)
+    }
+
+    @Test(arguments: [("-250", -250.0), ("−1.200,50", -1200.5), ("80", 80.0), ("abc", nil)] as [(String, Double?)])
+    func parsesSignedBalances(text: String, expected: Double?) {
+        #expect(Money.parseSigned(text) == expected)
+    }
+}
+
+// MARK: - Savings goals
+
+@MainActor
+struct SavingsPlannerTests {
+    @Test func suggestsAMonthlyAmount() {
+        let plan = SavingsPlanner.plan(target: 1_200, saved: 300, deadline: utcDate(2027, 4, 5), now: utcDate(2026, 10, 5), calendar: utc)
+        #expect(plan.progress == 0.25)
+        #expect(plan.remaining == 900)
+        #expect(plan.monthsLeft == 6)
+        #expect(plan.monthlyAmount == 150)
+        #expect(!plan.isReached)
+    }
+
+    @Test func aStartedMonthCountsAndRoundsUp() {
+        let plan = SavingsPlanner.plan(target: 100, saved: 0, deadline: utcDate(2026, 11, 20), now: utcDate(2026, 10, 5), calendar: utc)
+        #expect(plan.monthsLeft == 2)
+        #expect(plan.monthlyAmount == 50)
+        let odd = SavingsPlanner.plan(target: 100, saved: 0, deadline: utcDate(2027, 1, 5), now: utcDate(2026, 10, 5), calendar: utc)
+        #expect(odd.monthlyAmount == 33.34)
+    }
+
+    @Test func reachedAndOverdueGoals() {
+        let reached = SavingsPlanner.plan(target: 500, saved: 520, deadline: utcDate(2027, 1, 1), now: utcDate(2026, 10, 5), calendar: utc)
+        #expect(reached.isReached)
+        #expect(reached.progress == 1)
+        #expect(reached.monthlyAmount == nil)
+
+        let overdue = SavingsPlanner.plan(target: 500, saved: 100, deadline: utcDate(2026, 9, 1), now: utcDate(2026, 10, 5), calendar: utc)
+        #expect(overdue.isOverdue)
+        #expect(overdue.monthlyAmount == 400)
+
+        let open = SavingsPlanner.plan(target: 500, saved: 100, deadline: nil, now: utcDate(2026, 10, 5), calendar: utc)
+        #expect(open.monthlyAmount == nil)
+        #expect(open.remaining == 400)
+    }
+}
+
+// MARK: - Monthly report
+
+@MainActor
+struct MonthlyReportTests {
+    private func entries() -> [Expense] {
+        [
+            // September
+            Expense(store: "REWE", amount: 200, category: .groceries, date: utcDate(2026, 9, 10)),
+            Expense(store: "Miete", amount: 700, category: .housing, date: utcDate(2026, 9, 1), source: .recurring),
+            Expense(store: "Gehalt", amount: 2_000, category: .salary, date: utcDate(2026, 9, 28), isIncome: true),
+            Expense(store: "Restaurant", amount: 100, category: .food, date: utcDate(2026, 9, 15)),
+            // October
+            Expense(store: "REWE", amount: 260, category: .groceries, date: utcDate(2026, 10, 10)),
+            Expense(store: "Miete", amount: 700, category: .housing, date: utcDate(2026, 10, 1), source: .recurring),
+            Expense(store: "Gehalt", amount: 2_000, category: .salary, date: utcDate(2026, 10, 28), isIncome: true),
+            Expense(store: "Restaurant", amount: 40, category: .food, date: utcDate(2026, 10, 15))
+        ]
+    }
+
+    @Test func comparesWithThePreviousMonth() throws {
+        let container = try makeContainer()
+        _ = container
+        let budgets = [CategoryBudget(category: .groceries, monthlyLimit: 250)]
+        let report = ReportBuilder.build(month: utcDate(2026, 10, 12), entries: entries(), budgets: budgets,
+                                         now: utcDate(2026, 11, 3), calendar: utc)
+        #expect(report.spending == 1_000)
+        #expect(report.previousSpending == 1_000)
+        #expect(report.income == 2_000)
+        #expect(report.net == 1_000)
+        #expect(report.savingsRate == 0.5)
+        #expect(report.fixedCosts == 700)
+        #expect(report.dailyAverage == 32.26) // 1,000 € over 31 days
+        #expect(report.entryCount == 4)
+        #expect(report.overBudget == [.groceries])
+        #expect(report.biggestExpense?.store == "Miete")
+
+        let groceries = report.categories.first { $0.category == .groceries }
+        #expect(groceries?.delta == 60)
+        let food = report.categories.first { $0.category == .food }
+        #expect(food?.delta == -60)
+
+        let symbols = report.insights.map(\.symbol)
+        #expect(symbols.contains("leaf.fill"))              // kept 50 % of income
+        #expect(symbols.contains(ExpenseCategory.groceries.symbol))
+        #expect(symbols.contains(ExpenseCategory.food.symbol))
+        #expect(symbols.contains("chart.bar.xaxis"))       // over budget
+        #expect(symbols.contains("repeat.circle.fill"))    // fixed costs
+        // Same total as September: no "more/less than" insight.
+        #expect(!symbols.contains("arrow.up.right.circle.fill"))
+        #expect(!symbols.contains("arrow.down.right.circle.fill"))
+    }
+
+    @Test func runningMonthAveragesOverTheDaysSoFar() throws {
+        let container = try makeContainer()
+        _ = container
+        let report = ReportBuilder.build(month: utcDate(2026, 10, 1), entries: entries(), budgets: [],
+                                         now: utcDate(2026, 10, 10, 12), calendar: utc)
+        // The running month divides by the 10 days that have passed, not by 31.
+        #expect(report.dailyAverage == 100)
+    }
+
+    @Test func emptyMonthHasNoInsights() throws {
+        let container = try makeContainer()
+        _ = container
+        let report = ReportBuilder.build(month: utcDate(2026, 1, 1), entries: entries(), budgets: [], now: utcDate(2026, 10, 5), calendar: utc)
+        #expect(report.isEmpty)
+        #expect(report.insights.isEmpty)
+        #expect(report.spendingChange == nil)
+    }
+}
+
+// MARK: - Security
+
+@MainActor
+struct BackupCryptoTests {
+    @Test func encryptsAndDecrypts() throws {
+        let secret = Data("Kontostand 1.234,56 €".utf8)
+        let sealed = try BackupCrypto.encrypt(secret, password: "korrekt-pferd", rounds: 1_000)
+        #expect(BackupCrypto.isEncrypted(sealed))
+        #expect(sealed.range(of: secret) == nil) // no plaintext in the file
+        #expect(try BackupCrypto.decrypt(sealed, password: "korrekt-pferd") == secret)
+    }
+
+    @Test func rejectsWrongPasswordsAndChangedFiles() throws {
+        let sealed = try BackupCrypto.encrypt(Data("hello".utf8), password: "password-1", rounds: 1_000)
+        #expect(throws: BackupCrypto.CryptoError.wrongPassword) {
+            try BackupCrypto.decrypt(sealed, password: "password-2")
+        }
+        var changed = sealed
+        changed[changed.count - 1] ^= 0xFF
+        #expect(throws: BackupCrypto.CryptoError.wrongPassword) {
+            try BackupCrypto.decrypt(changed, password: "password-1")
+        }
+        #expect(throws: BackupCrypto.CryptoError.damaged) {
+            try BackupCrypto.decrypt(Data("PHINANZ-ENC1".utf8) + Data(count: 4), password: "password-1")
+        }
+    }
+
+    @Test func refusesShortPasswordsAndSameOutputTwice() throws {
+        #expect(throws: BackupCrypto.CryptoError.weakPassword) {
+            try BackupCrypto.encrypt(Data("x".utf8), password: "short")
+        }
+        let a = try BackupCrypto.encrypt(Data("x".utf8), password: "long enough", rounds: 1_000)
+        let b = try BackupCrypto.encrypt(Data("x".utf8), password: "long enough", rounds: 1_000)
+        #expect(a != b) // random salt and nonce
+    }
+
+    @Test func encryptedBackupRoundTrip() throws {
+        let container = try makeContainer()
+        let context = container.mainContext
+        // Fixed dates: JSON keeps whole seconds only.
+        let giro = Account(name: "Giro", kind: .checking, openingBalance: 500, sortOrder: 0, createdAt: utcDate(2026, 1, 1))
+        let cash = Account(name: "Bargeld", kind: .cash, openingBalance: 20, sortOrder: 1, createdAt: utcDate(2026, 1, 2))
+        context.insert(giro)
+        context.insert(cash)
+        context.insert(Expense(store: "Kiosk", amount: 3.5, category: .food, date: utcDate(2026, 10, 2), accountID: cash.id))
+        context.insert(Transfer(from: giro.id, to: cash.id, amount: 40, date: utcDate(2026, 10, 1), note: "ATM"))
+        context.insert(SavingsGoal(name: "Lissabon", target: 1_200, saved: 300, deadline: utcDate(2027, 5, 1), symbol: "airplane", colorName: "teal", createdAt: utcDate(2026, 2, 1)))
+        try context.save()
+
+        let backup = BackupService.makeBackup(
+            entries: try context.fetch(FetchDescriptor<Expense>()),
+            budgets: [],
+            recurring: [],
+            accounts: try context.fetch(FetchDescriptor<Account>()),
+            transfers: try context.fetch(FetchDescriptor<Transfer>()),
+            goals: try context.fetch(FetchDescriptor<SavingsGoal>()),
+            now: utcDate(2026, 10, 5)
+        )
+        let sealed = try BackupCrypto.encrypt(try BackupService.encode(backup), password: "geheim-geheim", rounds: 1_000)
+        #expect(throws: BackupError.passwordRequired) { try BackupService.decode(sealed) }
+        let decoded = try BackupService.decode(sealed, password: "geheim-geheim")
+        #expect(decoded == backup)
+
+        let other = try makeContainer()
+        let summary = try BackupService.restore(decoded, into: other.mainContext)
+        #expect(summary.accounts == 2)
+        #expect(summary.goals == 1)
+        let accounts = try other.mainContext.fetch(FetchDescriptor<Account>())
+        let entries = try other.mainContext.fetch(FetchDescriptor<Expense>())
+        let transfers = try other.mainContext.fetch(FetchDescriptor<Transfer>())
+        let restoredCash = try #require(accounts.first { $0.name == "Bargeld" })
+        #expect(restoredCash.id == cash.id)
+        #expect(AccountLedger.balance(of: restoredCash, accounts: accounts, entries: entries, transfers: transfers,
+                                      upTo: utcDate(2026, 10, 5)) == 56.5)
+        let goal = try #require(try other.mainContext.fetch(FetchDescriptor<SavingsGoal>()).first)
+        #expect(goal.symbol == "airplane")
+        #expect(goal.saved == 300)
+    }
+
+    @Test func versionOneBackupsGetAMainAccount() throws {
+        let container = try makeContainer()
+        let backup = BackupFile(exportedAt: utcDate(2026, 10, 5), startingBalance: 250, entries: [
+            .init(store: "REWE", amount: 10, category: "groceries", date: utcDate(2026, 10, 1), note: "", source: "manual", isIncome: false)
+        ], budgets: [], recurring: [])
+        try BackupService.restore(backup, into: container.mainContext)
+        let accounts = try container.mainContext.fetch(FetchDescriptor<Account>())
+        #expect(accounts.count == 1)
+        #expect(accounts.first?.openingBalance == 250)
+    }
+
+    @Test func hiddenWidgetsGetNoNumbers() throws {
+        let container = try makeContainer()
+        _ = container
+        let entries = [Expense(store: "REWE", amount: 20, category: .groceries, date: utcDate(2026, 10, 5, 10))]
+        let snapshot = WidgetBridge.makeSnapshot(entries: entries, budgets: [], startingBalance: 1_000,
+                                                 hideAmounts: true, now: utcDate(2026, 10, 5, 12), calendar: utc)
+        #expect(snapshot.isHidden == true)
+        #expect(snapshot.todaySpent == 0)
+        #expect(snapshot.balance == 0)
+    }
+
+    @Test func readsCloudKitFromAProvisioningProfile() {
+        func profile(_ services: String) -> Data {
+            Data("""
+            garbage-before<?xml version="1.0" encoding="UTF-8"?>
+            <plist version="1.0"><dict><key>Entitlements</key><dict>
+            <key>com.apple.developer.icloud-services</key>\(services)
+            </dict></dict></plist>garbage-after
+            """.utf8)
+        }
+        #expect(CloudSync.entitlementGranted(inProfileData: profile("<array><string>CloudKit</string></array>")))
+        #expect(CloudSync.entitlementGranted(inProfileData: profile("<string>*</string>")))
+        #expect(!CloudSync.entitlementGranted(inProfileData: profile("<array><string>CloudDocuments</string></array>")))
+        #expect(!CloudSync.entitlementGranted(inProfileData: Data("no plist".utf8)))
+    }
+}

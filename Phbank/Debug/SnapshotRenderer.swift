@@ -21,19 +21,12 @@ enum SnapshotRenderer {
         let view: AnyView
     }
 
-    private static var candidateDirectories: [URL] {
-        guard let home = ProcessInfo.processInfo.environment["SIMULATOR_HOST_HOME"] else { return [] }
-        let base = URL(fileURLWithPath: home)
-        return [
-            base.appendingPathComponent("Desktop/Phbank/snapshots"),
-            base.appendingPathComponent("code/phinanz-snapshots")
-        ]
-    }
+    private static var candidateDirectories: [URL] { DebugFlags.directories }
 
     @MainActor
     static func runIfRequested() async {
         guard !AppEnvironment.isUITest,
-              let directory = candidateDirectories.first(where: {
+              let root = candidateDirectories.first(where: {
                   FileManager.default.fileExists(atPath: $0.appendingPathComponent("REQUEST").path)
               }),
               let scene = UIApplication.shared.connectedScenes.compactMap({ $0 as? UIWindowScene }).first
@@ -52,14 +45,29 @@ enum SnapshotRenderer {
         }
         SampleData.seedShowcase(into: container.mainContext)
 
-        var log = "Started \(Date())\n"
-        let logURL = directory.appendingPathComponent("log.txt")
+        // One folder per app language, e.g. snapshots/de.
+        let language = Locale.current.language.languageCode?.identifier ?? "xx"
+        let directory = root.appendingPathComponent(language)
+        try? FileManager.default.createDirectory(at: directory, withIntermediateDirectories: true)
+
+        var log = "Started \(Date()) language \(language)\n"
+        let logURL = root.appendingPathComponent("log.txt")
         for scenario in scenarios(container: container) {
             log += "\(scenario.name): rendering…\n"
             try? log.write(to: logURL, atomically: true, encoding: .utf8)
             let result = await render(scenario, in: scene, container: container, to: directory)
             log += "\(scenario.name): \(result)\n"
             try? log.write(to: logURL, atomically: true, encoding: .utf8)
+        }
+        // A sample PDF report, to check the layout.
+        let entries = (try? container.mainContext.fetch(FetchDescriptor<Expense>())) ?? []
+        let budgets = (try? container.mainContext.fetch(FetchDescriptor<CategoryBudget>())) ?? []
+        let lastMonth = Calendar.current.date(byAdding: .month, value: -1, to: Date()) ?? Date()
+        if let pdf = try? ReportPDF.write(ReportBuilder.build(month: lastMonth, entries: entries, budgets: budgets)) {
+            let target = directory.appendingPathComponent("report.pdf")
+            try? FileManager.default.removeItem(at: target)
+            try? FileManager.default.copyItem(at: pdf, to: target)
+            log += "report.pdf: ok\n"
         }
         log += "Finished \(Date())\n"
         try? log.write(to: logURL, atomically: true, encoding: .utf8)
@@ -107,15 +115,36 @@ enum SnapshotRenderer {
             Scenario(name: "14-review-light", style: .light, locale: nil, view: AnyView(ReviewDraftsView(importer: reviewImporter) { _ in })),
             Scenario(name: "15-budgets-light", style: .light, locale: nil, view: AnyView(NavigationStack { BudgetsView() })),
             Scenario(name: "16-recurring-light", style: .light, locale: nil, view: AnyView(NavigationStack { RecurringListView() })),
-            Scenario(name: "17-journal-fa", style: .light, locale: "fa", view: AnyView(ContentView(initialTab: .journal, previewMode: true))),
-            Scenario(name: "18-summary-de", style: .light, locale: "de", view: AnyView(ContentView(initialTab: .summary, previewMode: true))),
-            Scenario(name: "19-plan-fa-dark", style: .dark, locale: "fa", view: AnyView(ContentView(initialTab: .plan, previewMode: true))),
             Scenario(name: "20-journal-empty-day", style: .light, locale: nil, view: AnyView(ContentView(initialTab: .journal, initialDate: Calendar.current.date(byAdding: .day, value: 3, to: Date()), previewMode: true))),
             Scenario(name: "22-review-bank-csv", style: .light, locale: nil, view: AnyView(ReviewDraftsView(importer: bankImporter) { _ in })),
             Scenario(name: "21-journal-income-day-dark", style: .dark, locale: nil, view: AnyView(ContentView(initialTab: .journal, initialDate: Calendar.current.date(byAdding: .day, value: -4, to: Date()), previewMode: true)))
         ]
         if let sampleEntry {
             list.append(Scenario(name: "08-editor-edit-dark", style: .dark, locale: nil, view: AnyView(ExpenseEditorView(expense: sampleEntry, defaultDate: sampleEntry.date))))
+        }
+
+        // Accounts, goals, report, security.
+        let accounts = (try? context.fetch(FetchDescriptor<Account>())) ?? []
+        let goals = (try? context.fetch(FetchDescriptor<SavingsGoal>(sortBy: [SortDescriptor(\.createdAt)]))) ?? []
+        let budgets = (try? context.fetch(FetchDescriptor<CategoryBudget>())) ?? []
+        let lastMonth = Calendar.current.date(byAdding: .month, value: -1, to: Date()) ?? Date()
+        list += [
+            Scenario(name: "23-plan-dark", style: .dark, locale: nil, view: AnyView(ContentView(initialTab: .plan, previewMode: true))),
+            Scenario(name: "25-report-light", style: .light, locale: nil, view: AnyView(NavigationStack { MonthlyReportView(expenses: entries, budgets: budgets, month: lastMonth) })),
+            Scenario(name: "26-report-dark", style: .dark, locale: nil, view: AnyView(NavigationStack { MonthlyReportView(expenses: entries, budgets: budgets, month: lastMonth) })),
+            Scenario(name: "27-security", style: .light, locale: nil, view: AnyView(NavigationStack { SecurityOverviewView() })),
+            Scenario(name: "28-accounts-list", style: .light, locale: nil, view: AnyView(NavigationStack { AccountsListView() })),
+            Scenario(name: "30-backup-sheet", style: .light, locale: nil, view: AnyView(BackupSheet { _ in })),
+            Scenario(name: "31-transfer", style: .light, locale: nil, view: AnyView(TransferEditorView())),
+            Scenario(name: "32-goal-editor", style: .light, locale: nil, view: AnyView(GoalEditorView(goal: nil))),
+            Scenario(name: "34-settings-dark", style: .dark, locale: nil, view: AnyView(SettingsView(expenses: entries, year: year)))
+        ]
+        if let goal = goals.first {
+            list.append(Scenario(name: "24-goal-detail", style: .light, locale: nil, view: AnyView(NavigationStack { GoalDetailView(goal: goal) })))
+            list.append(Scenario(name: "24b-goal-detail-dark", style: .dark, locale: nil, view: AnyView(NavigationStack { GoalDetailView(goal: goal) })))
+        }
+        if let primary = AccountLedger.primary(accounts) {
+            list.append(Scenario(name: "29-account-detail", style: .light, locale: nil, view: AnyView(NavigationStack { AccountDetailView(accountID: primary.id, expenses: entries) })))
         }
         return list
     }

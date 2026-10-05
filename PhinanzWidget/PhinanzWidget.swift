@@ -52,10 +52,12 @@ struct SpendingWidgetView: View {
     }
 
     var body: some View {
-        if let snapshot = entry.snapshot {
+        if let snapshot = entry.snapshot, snapshot.isHidden == true {
+            hidden
+        } else if let snapshot = entry.snapshot {
             switch family {
             case .accessoryInline:
-                Text("Today \(euro(snapshot.todaySpent))")
+                Text("Today \(euro(snapshot.todaySpent))").privacySensitive()
             case .accessoryCircular:
                 circular(snapshot)
             case .accessoryRectangular:
@@ -67,6 +69,32 @@ struct SpendingWidgetView: View {
             }
         } else {
             empty
+        }
+    }
+
+    /// Amounts are hidden in Settings → Security; the app shares no numbers then.
+    @ViewBuilder
+    private var hidden: some View {
+        switch family {
+        case .accessoryInline:
+            Label("PHINANZ", systemImage: "lock.fill")
+        case .accessoryCircular:
+            Image(systemName: "lock.fill").font(.title3)
+        case .accessoryRectangular:
+            Label("Amounts hidden", systemImage: "lock.fill").font(.caption)
+        default:
+            VStack(alignment: .leading, spacing: 6) {
+                Image(systemName: "lock.fill")
+                    .font(.title2)
+                    .foregroundStyle(.tint)
+                    .widgetAccentable()
+                Spacer()
+                Text(verbatim: "PHINANZ").font(.headline)
+                Text("Amounts hidden")
+                    .font(.subheadline)
+                    .foregroundStyle(.secondary)
+            }
+            .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .leading)
         }
     }
 
@@ -90,6 +118,7 @@ struct SpendingWidgetView: View {
                 .foregroundStyle(.tint)
                 .widgetAccentable()
             Text(euro(s.todaySpent))
+                .privacySensitive()
                 .font(WidgetStyle.amount(.title, weight: .bold))
                 .minimumScaleFactor(0.5)
                 .lineLimit(1)
@@ -99,6 +128,7 @@ struct SpendingWidgetView: View {
                 .font(.caption)
                 .foregroundStyle(.secondary)
             Text(euro(s.monthSpent))
+                .privacySensitive()
                 .font(WidgetStyle.amount(.headline))
                 .minimumScaleFactor(0.6)
                 .lineLimit(1)
@@ -143,6 +173,7 @@ struct SpendingWidgetView: View {
                 .font(.caption.weight(.semibold))
                 .foregroundStyle(color)
             Text(value)
+                .privacySensitive()
                 .font(WidgetStyle.amount(.headline))
                 .minimumScaleFactor(0.6)
                 .lineLimit(1)
@@ -161,6 +192,7 @@ struct SpendingWidgetView: View {
             Image(systemName: "eurosign")
         } currentValueLabel: {
             Text(s.todaySpent, format: .number.precision(.fractionLength(0)))
+                .privacySensitive()
         }
         .gaugeStyle(.accessoryCircular)
     }
@@ -168,8 +200,8 @@ struct SpendingWidgetView: View {
     private func rectangular(_ s: WidgetSnapshot) -> some View {
         VStack(alignment: .leading, spacing: 1) {
             Text(verbatim: "PHINANZ").font(.caption2).bold()
-            Text("Today \(euro(s.todaySpent))").font(.caption)
-            Text("Month \(euro(s.monthSpent))").font(.caption)
+            Text("Today \(euro(s.todaySpent))").font(.caption).privacySensitive()
+            Text("Month \(euro(s.monthSpent))").font(.caption).privacySensitive()
         }
         .frame(maxWidth: .infinity, alignment: .leading)
     }

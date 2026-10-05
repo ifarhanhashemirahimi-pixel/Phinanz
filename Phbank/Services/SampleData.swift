@@ -57,7 +57,53 @@ enum SampleData {
             Expense(store: "H&M", amount: 59.97, category: .shopping, date: at(-16, 15, 0)),
             Expense(store: "Nachhilfe", amount: 120.00, category: .freelance, date: at(-18, 18, 0), isIncome: true)
         ]
-        for entry in entries { context.insert(entry) }
+        // Accounts: card payments and income on the checking account, a few cash buys.
+        let checking = Account(name: "Girokonto", kind: .checking, openingBalance: 1_240, sortOrder: 0)
+        let cash = Account(name: "Bargeld", kind: .cash, openingBalance: 60, sortOrder: 1)
+        let credit = Account(name: "Kreditkarte", kind: .credit, openingBalance: 0, sortOrder: 2)
+        let savings = Account(name: "Sparkonto", kind: .savings, openingBalance: 3_500, sortOrder: 3)
+        for account in [checking, cash, credit, savings] { context.insert(account) }
+        for entry in entries {
+            switch entry.store {
+            case "Bäckerei Schmidt", "Kino Darmstadt", "Apotheke": entry.accountID = cash.id
+            case "Amazon", "H&M", "Deutsche Bahn": entry.accountID = credit.id
+            default: entry.accountID = checking.id
+            }
+            context.insert(entry)
+        }
+        context.insert(Transfer(from: checking.id, to: cash.id, amount: 100, date: at(-5, 13), note: "Geldautomat"))
+        context.insert(Transfer(from: checking.id, to: savings.id, amount: 300, date: at(-4, 10), note: "Sparrate"))
+
+        // Savings goals.
+        let trip = SavingsGoal(name: "Reise nach Lissabon", target: 1_200, saved: 780,
+                               deadline: calendar.date(byAdding: .month, value: 5, to: now),
+                               symbol: "airplane", colorName: "teal")
+        let laptop = SavingsGoal(name: "Neues MacBook", target: 1_500, saved: 450,
+                                 deadline: calendar.date(byAdding: .month, value: 8, to: now),
+                                 symbol: "laptopcomputer", colorName: "indigo")
+        let buffer = SavingsGoal(name: "Notgroschen", target: 3_000, saved: 3_000, symbol: "umbrella.fill", colorName: "green")
+        for goal in [trip, laptop, buffer] { context.insert(goal) }
+
+        // The two months before, so the monthly report has something to compare with.
+        func inMonth(_ monthOffset: Int, day: Int, hour: Int) -> Date {
+            let thisMonth = calendar.dateInterval(of: .month, for: now)?.start ?? now
+            let month = calendar.date(byAdding: .month, value: monthOffset, to: thisMonth) ?? thisMonth
+            let date = calendar.date(byAdding: .day, value: day - 1, to: month) ?? month
+            return calendar.date(bySettingHour: hour, minute: 0, second: 0, of: date) ?? date
+        }
+        var lastMonth: [Expense] = []
+        for (offset, groceries, food, shopping) in [(-1, 96.40, 64.00, 89.95), (-2, 142.80, 92.50, 139.99)] {
+            lastMonth += [
+                Expense(store: "REWE", amount: groceries, category: .groceries, date: inMonth(offset, day: 3, hour: 18), accountID: checking.id),
+                Expense(store: "Lidl", amount: 71.25, category: .groceries, date: inMonth(offset, day: 10, hour: 17), accountID: checking.id),
+                Expense(store: "Restaurant Sultan", amount: food, category: .food, date: inMonth(offset, day: 14, hour: 20), accountID: credit.id),
+                Expense(store: "Zalando", amount: shopping, category: .shopping, date: inMonth(offset, day: 20, hour: 12), accountID: credit.id),
+                Expense(store: "Miete", amount: 720.00, category: .housing, date: inMonth(offset, day: 1, hour: 9), source: .recurring, accountID: checking.id),
+                Expense(store: "Arbeitgeber GmbH", amount: 2_450.00, category: .salary, date: inMonth(offset, day: 28, hour: 9), source: .recurring, isIncome: true, accountID: checking.id),
+                Expense(store: "Netflix", amount: 13.99, category: .entertainment, date: inMonth(offset, day: 15, hour: 9), source: .recurring, accountID: checking.id)
+            ]
+        }
+        for entry in lastMonth { context.insert(entry) }
 
         context.insert(CategoryBudget(category: .groceries, monthlyLimit: 250))
         context.insert(CategoryBudget(category: .food, monthlyLimit: 120))
@@ -65,10 +111,10 @@ enum SampleData {
         context.insert(CategoryBudget(category: .entertainment, monthlyLimit: 60))
 
         let start = calendar.date(byAdding: .month, value: -2, to: now) ?? now
-        let rent = RecurringPayment(name: "Miete", amount: 720, category: .housing, dayOfMonth: 1, startDate: start)
-        let salary = RecurringPayment(name: "Arbeitgeber GmbH", amount: 2_450, category: .salary, isIncome: true, dayOfMonth: 28, startDate: start)
-        let netflix = RecurringPayment(name: "Netflix", amount: 13.99, category: .entertainment, dayOfMonth: 15, startDate: start)
-        let insurance = RecurringPayment(name: "Haftpflichtversicherung", amount: 6.50, category: .other, dayOfMonth: 20, startDate: start)
+        let rent = RecurringPayment(name: "Miete", amount: 720, category: .housing, dayOfMonth: 1, startDate: start, accountID: checking.id)
+        let salary = RecurringPayment(name: "Arbeitgeber GmbH", amount: 2_450, category: .salary, isIncome: true, dayOfMonth: 28, startDate: start, accountID: checking.id)
+        let netflix = RecurringPayment(name: "Netflix", amount: 13.99, category: .entertainment, dayOfMonth: 15, startDate: start, accountID: checking.id)
+        let insurance = RecurringPayment(name: "Haftpflichtversicherung", amount: 6.50, category: .other, dayOfMonth: 20, startDate: start, accountID: checking.id)
         for payment in [rent, salary, netflix, insurance] {
             payment.lastGenerated = now
             context.insert(payment)

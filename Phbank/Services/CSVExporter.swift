@@ -59,9 +59,7 @@ enum CSVExporter {
     }
 
     static func writeFile(for expenses: [Expense], year: Int) throws -> URL {
-        let url = FileManager.default.temporaryDirectory.appendingPathComponent("PHINANZ-\(year).csv")
         let content = "\u{FEFF}" + csv(for: expenses)
-        try content.write(to: url, atomically: true, encoding: .utf8)
-        return url
+        return try DataProtection.writeExport(Data(content.utf8), named: "\(year).csv")
     }
 }
