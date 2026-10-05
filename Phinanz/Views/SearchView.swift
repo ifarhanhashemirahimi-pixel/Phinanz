@@ -2,7 +2,8 @@
 //  SearchView.swift
 //  Phinanz
 //
-//  The search tab: recent entries, and results as you type.
+//  The search tab: recent entries, and results as you type. Tapping a
+//  result turns the journal to that day; swipe or long-press to edit.
 //
 
 import SwiftUI
@@ -10,6 +11,7 @@ import SwiftUI
 struct SearchView: View {
     let expenses: [Expense]
     @Binding var activeSheet: ActiveSheet?
+    var onShowDay: (Expense) -> Void = { _ in }
 
     @State private var query = ""
 
@@ -68,10 +70,31 @@ struct SearchView: View {
 
     private func row(_ entry: Expense) -> some View {
         Button {
-            activeSheet = .edit(entry)
+            onShowDay(entry)
         } label: {
             EntryRow(entry: entry, showsDate: true)
         }
         .tint(Color.primary)
+        .swipeActions(edge: .trailing) {
+            Button {
+                activeSheet = .edit(entry)
+            } label: {
+                Label("Edit", systemImage: "pencil")
+            }
+            .tint(.accentColor)
+        }
+        .contextMenu {
+            Button {
+                onShowDay(entry)
+            } label: {
+                Label("Show Day", systemImage: "book.pages")
+            }
+            Button {
+                activeSheet = .edit(entry)
+            } label: {
+                Label("Edit", systemImage: "pencil")
+            }
+        }
+        .accessibilityHint(Text("Opens this day in the journal"))
     }
 }

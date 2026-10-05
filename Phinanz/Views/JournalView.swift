@@ -14,6 +14,8 @@ struct JournalView: View {
     let expenses: [Expense]
     @Binding var selectedDate: Date
     @Binding var activeSheet: ActiveSheet?
+    /// Entry to highlight after jumping here from search.
+    var highlightedEntry: PersistentIdentifier?
 
     @State private var year: Int
     @State private var pageIndex: Int?
@@ -21,10 +23,11 @@ struct JournalView: View {
 
     private let calendar = Calendar.current
 
-    init(expenses: [Expense], selectedDate: Binding<Date>, activeSheet: Binding<ActiveSheet?>) {
+    init(expenses: [Expense], selectedDate: Binding<Date>, activeSheet: Binding<ActiveSheet?>, highlightedEntry: PersistentIdentifier? = nil) {
         self.expenses = expenses
         _selectedDate = selectedDate
         _activeSheet = activeSheet
+        self.highlightedEntry = highlightedEntry
         _year = State(initialValue: Calendar.current.component(.year, from: selectedDate.wrappedValue))
     }
 
@@ -150,6 +153,7 @@ struct JournalView: View {
                     DayPageView(
                         date: day,
                         entries: (grouped[day] ?? []).sorted { $0.date < $1.date },
+                        highlightedEntry: highlightedEntry,
                         onAdd: { activeSheet = .add(YearCalendar.entryDate(on: day, calendar: calendar)) },
                         onEdit: { activeSheet = .edit($0) }
                     )
@@ -258,6 +262,7 @@ struct DayPageView: View {
     @Environment(\.modelContext) private var context
     let date: Date
     let entries: [Expense]
+    var highlightedEntry: PersistentIdentifier? = nil
     var onAdd: () -> Void
     var onEdit: (Expense) -> Void
 
@@ -289,6 +294,7 @@ struct DayPageView: View {
                             EntryRow(entry: entry)
                         }
                         .tint(Color.primary)
+                        .listRowBackground(entry.persistentModelID == highlightedEntry ? HighlightedRowBackground() : nil)
                         .swipeActions(edge: .trailing, allowsFullSwipe: true) {
                             Button(role: .destructive) {
                                 delete(entry)
@@ -320,6 +326,17 @@ struct DayPageView: View {
         withAnimation {
             context.delete(entry)
             try? context.save()
+        }
+    }
+}
+
+/// Row background for an entry you jumped to from search: the normal card
+/// colour with a soft accent wash on top.
+struct HighlightedRowBackground: View {
+    var body: some View {
+        ZStack {
+            Theme.card
+            Color.accentColor.opacity(0.18)
         }
     }
 }

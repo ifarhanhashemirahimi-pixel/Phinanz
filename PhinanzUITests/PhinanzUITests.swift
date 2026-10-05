@@ -19,8 +19,21 @@ final class PhinanzUITests: XCTestCase {
         let app = XCUIApplication()
         // Run in English whatever language the simulator uses.
         app.launchArguments = ["-UITests", "-AppleLanguages", "(en)", "-AppleLocale", "en_US"]
+        // The launch tests rotate the simulator; these flows expect portrait.
+        XCUIDevice.shared.orientation = .portrait
         app.launch()
         return app
+    }
+
+    /// Swipes up until `element` exists (list rows below the fold aren't in the hierarchy yet).
+    @MainActor
+    private func reveal(_ element: XCUIElement, in app: XCUIApplication, attempts: Int = 4) -> Bool {
+        if element.waitForExistence(timeout: 5) { return true }
+        for _ in 0..<attempts {
+            app.swipeUp()
+            if element.waitForExistence(timeout: 1.5) { return true }
+        }
+        return false
     }
 
     @MainActor
@@ -69,7 +82,7 @@ final class PhinanzUITests: XCTestCase {
         app.buttons["save-entry"].tap()
 
         let row = app.buttons.matching(NSPredicate(format: "label CONTAINS 'UITest Cafe'")).firstMatch
-        XCTAssertTrue(row.waitForExistence(timeout: 5))
+        XCTAssertTrue(reveal(row, in: app))
     }
 
     @MainActor
@@ -92,7 +105,7 @@ final class PhinanzUITests: XCTestCase {
 
         app.buttons["save-goal"].tap()
         let row = app.buttons.matching(NSPredicate(format: "label CONTAINS 'UITest Trip'")).firstMatch
-        XCTAssertTrue(row.waitForExistence(timeout: 5))
+        XCTAssertTrue(reveal(row, in: app))
     }
 
     @MainActor
@@ -100,7 +113,7 @@ final class PhinanzUITests: XCTestCase {
         let app = launchApp()
         app.buttons["toolbar-settings"].tap()
         let link = app.buttons["security-overview"]
-        XCTAssertTrue(link.waitForExistence(timeout: 5))
+        XCTAssertTrue(reveal(link, in: app))
         link.tap()
         XCTAssertTrue(app.navigationBars["Security & Privacy"].waitForExistence(timeout: 5))
     }

@@ -48,6 +48,9 @@ struct ContentView: View {
     @State private var importer = ImportController()
     @State private var showOnboarding = false
     @State private var router = AppRouter.shared
+    /// The entry a search result pointed at; its row lights up briefly.
+    @State private var highlightedEntry: PersistentIdentifier?
+    @State private var highlightTask: Task<Void, Never>?
     #if DEBUG
     @State private var demoSheet: DemoSheet?
     @Query(sort: \SavingsGoal.createdAt) private var demoGoals: [SavingsGoal]
@@ -57,16 +60,17 @@ struct ContentView: View {
     /// Previews and debug screenshots: no onboarding, scheduler or widget updates.
     private let previewMode: Bool
 
-    init(initialTab: AppTab = .journal, initialDate: Date? = nil, previewMode: Bool = false) {
+    init(initialTab: AppTab = .journal, initialDate: Date? = nil, initialHighlight: PersistentIdentifier? = nil, previewMode: Bool = false) {
         _selectedTab = State(initialValue: initialTab)
         _journalDate = State(initialValue: Calendar.current.startOfDay(for: initialDate ?? Date()))
+        _highlightedEntry = State(initialValue: initialHighlight)
         self.previewMode = previewMode
     }
 
     var body: some View {
         TabView(selection: $selectedTab) {
             Tab("Journal", systemImage: "book.pages", value: AppTab.journal) {
-                JournalView(expenses: expenses, selectedDate: $journalDate, activeSheet: $activeSheet)
+                JournalView(expenses: expenses, selectedDate: $journalDate, activeSheet: $activeSheet, highlightedEntry: highlightedEntry)
             }
             Tab("Summary", systemImage: "chart.pie", value: AppTab.summary) {
                 SummaryView(expenses: expenses, activeSheet: $activeSheet)
@@ -75,7 +79,7 @@ struct ContentView: View {
                 PlanView(expenses: expenses, activeSheet: $activeSheet)
             }
             Tab("Search", systemImage: "magnifyingglass", value: AppTab.search, role: .search) {
-                SearchView(expenses: expenses, activeSheet: $activeSheet)
+                SearchView(expenses: expenses, activeSheet: $activeSheet, onShowDay: showDay)
             }
         }
         .tabViewStyle(.sidebarAdaptable)
@@ -181,6 +185,25 @@ struct ContentView: View {
         }
     }
     #endif
+
+    /// Search result → journal: switch to the Journal tab, page to that day
+    /// (the pager animates, like turning pages) and light up the entry.
+    private func showDay(of entry: Expense) {
+        let target = calendar.startOfDay(for: entry.date)
+        let id = entry.persistentModelID
+        highlightTask?.cancel()
+        selectedTab = .journal
+        highlightTask = Task { @MainActor in
+            // Let the tab switch finish so the page turn is visible.
+            try? await Task.sleep(for: .milliseconds(320))
+            guard !Task.isCancelled else { return }
+            journalDate = target
+            withAnimation(.easeIn(duration: 0.2)) { highlightedEntry = id }
+            try? await Task.sleep(for: .seconds(2.4))
+            guard !Task.isCancelled else { return }
+            withAnimation(.easeOut(duration: 0.8)) { highlightedEntry = nil }
+        }
+    }
 
     /// Runs a deep-link or Siri request — never while the journal is locked.
     private func handlePendingAction() {

@@ -46,8 +46,8 @@ struct AnalysingHUD: View {
         ZStack {
             Color.black.opacity(0.15).ignoresSafeArea()
             VStack(spacing: 14) {
-                ProgressView()
-                    .controlSize(.large)
+                PHLoadingMark()
+                    .padding(.bottom, 2)
                 Text("Analysing…")
                     .font(.headline)
                 Text("Gemini is reading your file")
@@ -60,6 +60,50 @@ struct AnalysingHUD: View {
         }
         .contentShape(Rectangle()) // block taps while processing
         .accessibilityElement(children: .combine)
+    }
+}
+
+/// The PHINANZ "PH" monogram inside two counter-rotating gradient rings,
+/// shown while Gemini reads a voice note, receipt or statement.
+/// With Reduce Motion the rings stand still.
+struct PHLoadingMark: View {
+    var size: CGFloat = 84
+
+    @Environment(\.accessibilityReduceMotion) private var reduceMotion
+
+    private var gradient: AngularGradient {
+        AngularGradient(
+            colors: [Color.accentColor.opacity(0), Color.accentColor, .cyan],
+            center: .center
+        )
+    }
+
+    var body: some View {
+        TimelineView(.animation(minimumInterval: nil, paused: reduceMotion)) { timeline in
+            let seconds = reduceMotion ? 0 : timeline.date.timeIntervalSinceReferenceDate
+            let turn = seconds.truncatingRemainder(dividingBy: 360)
+            ZStack {
+                Circle()
+                    .stroke(Color.accentColor.opacity(0.12), lineWidth: size * 0.06)
+                Circle()
+                    .trim(from: 0, to: 0.72)
+                    .stroke(gradient, style: StrokeStyle(lineWidth: size * 0.06, lineCap: .round))
+                    .rotationEffect(.degrees(turn * 200))
+                Circle()
+                    .trim(from: 0, to: 0.5)
+                    .stroke(gradient, style: StrokeStyle(lineWidth: size * 0.035, lineCap: .round))
+                    .padding(size * 0.14)
+                    .rotationEffect(.degrees(-turn * 280))
+                Text(verbatim: "PH")
+                    .font(.system(size: size * 0.27, weight: .heavy, design: .rounded))
+                    .foregroundStyle(
+                        LinearGradient(colors: [Color.accentColor, .cyan], startPoint: .topLeading, endPoint: .bottomTrailing)
+                    )
+                    .scaleEffect(reduceMotion ? 1 : 1 + 0.04 * sin(seconds * 3))
+            }
+            .frame(width: size, height: size)
+        }
+        .accessibilityHidden(true)
     }
 }
 

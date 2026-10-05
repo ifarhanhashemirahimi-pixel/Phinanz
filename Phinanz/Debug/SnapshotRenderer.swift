@@ -143,6 +143,11 @@ enum SnapshotRenderer {
             list.append(Scenario(name: "24-goal-detail", style: .light, locale: nil, view: AnyView(NavigationStack { GoalDetailView(goal: goal) })))
             list.append(Scenario(name: "24b-goal-detail-dark", style: .dark, locale: nil, view: AnyView(NavigationStack { GoalDetailView(goal: goal) })))
         }
+        list.append(Scenario(name: "35-analysing", style: .light, locale: nil, view: AnyView(ZStack { ContentView(initialTab: .journal, previewMode: true); AnalysingHUD() })))
+        list.append(Scenario(name: "35b-analysing-dark", style: .dark, locale: nil, view: AnyView(ZStack { ContentView(initialTab: .journal, previewMode: true); AnalysingHUD() })))
+        if let found = entries.last(where: { !$0.isIncome && Calendar.current.isDateInToday($0.date) }) ?? sampleEntry {
+            list.append(Scenario(name: "36-search-jump-highlight", style: .light, locale: nil, view: AnyView(ContentView(initialTab: .journal, initialDate: found.date, initialHighlight: found.persistentModelID, previewMode: true))))
+        }
         if let primary = AccountLedger.primary(accounts) {
             list.append(Scenario(name: "29-account-detail", style: .light, locale: nil, view: AnyView(NavigationStack { AccountDetailView(accountID: primary.id, expenses: entries) })))
         }
