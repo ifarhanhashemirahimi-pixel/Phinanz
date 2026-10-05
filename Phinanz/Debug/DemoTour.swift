@@ -57,7 +57,8 @@ enum DemoTour {
 
         let recorder: WindowRecorder
         do {
-            recorder = try WindowRecorder(scene: scene, url: output)
+            // 1.2× is sharper than the phone in the final 1080p video and records smoothly.
+            recorder = try WindowRecorder(scene: scene, url: output, scale: 1.2)
         } catch {
             try? "Recorder failed: \(error)".write(to: directory.appendingPathComponent("demo-timeline.txt"), atomically: true, encoding: .utf8)
             return
@@ -179,10 +180,9 @@ enum DemoTour {
 
     @MainActor
     private static func setStyle(_ style: UIUserInterfaceStyle, in scene: UIWindowScene) {
+        // No cross-dissolve: its snapshot view can't be recorded with drawHierarchy.
         for window in scene.windows {
-            UIView.transition(with: window, duration: 0.6, options: .transitionCrossDissolve) {
-                window.overrideUserInterfaceStyle = style
-            }
+            window.overrideUserInterfaceStyle = style
         }
     }
 

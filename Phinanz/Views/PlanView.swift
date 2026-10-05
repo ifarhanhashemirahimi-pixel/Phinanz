@@ -15,6 +15,9 @@ struct PlanView: View {
     @Query private var budgets: [CategoryBudget]
     @Query(sort: \RecurringPayment.dayOfMonth) private var payments: [RecurringPayment]
 
+    @State private var showTransfer = false
+    @State private var showNewGoal = false
+
     private let calendar = Calendar.current
 
     private var month: DateInterval {
@@ -47,8 +50,8 @@ struct PlanView: View {
     var body: some View {
         NavigationStack {
             List {
-                AccountsSection(expenses: expenses)
-                GoalsSection()
+                AccountsSection(expenses: expenses, showTransfer: $showTransfer)
+                GoalsSection(showNew: $showNewGoal)
 
                 Section {
                     if statuses.isEmpty {
@@ -111,6 +114,8 @@ struct PlanView: View {
                 }
             }
             .listStyle(.insetGrouped)
+            .sheet(isPresented: $showTransfer) { TransferEditorView() }
+            .sheet(isPresented: $showNewGoal) { GoalEditorView(goal: nil) }
             .navigationTitle("Plan")
             .toolbar {
                 ToolbarItem(placement: .topBarLeading) {

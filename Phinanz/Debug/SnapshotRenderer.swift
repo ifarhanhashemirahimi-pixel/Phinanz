@@ -25,7 +25,7 @@ enum SnapshotRenderer {
 
     @MainActor
     static func runIfRequested() async {
-        guard !AppEnvironment.isUITest,
+        guard !AppEnvironment.isUITest, !DebugFlags.isTesting,
               let root = candidateDirectories.first(where: {
                   FileManager.default.fileExists(atPath: $0.appendingPathComponent("REQUEST").path)
               }),

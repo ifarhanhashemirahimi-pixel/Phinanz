@@ -12,9 +12,10 @@ import SwiftData
 /// "Accounts" section for the Plan tab.
 struct AccountsSection: View {
     let expenses: [Expense]
+    /// Owned by the list: sheets attached to a Section inside a List don't present reliably.
+    @Binding var showTransfer: Bool
     @Query private var accounts: [Account]
     @Query(sort: \Transfer.date, order: .reverse) private var transfers: [Transfer]
-    @State private var showTransfer = false
 
     private var balances: [AccountBalance] {
         AccountLedger.balances(accounts: accounts, entries: expenses, transfers: transfers)
@@ -57,9 +58,6 @@ struct AccountsSection: View {
         } header: {
             Text("Accounts")
         }
-        .sheet(isPresented: $showTransfer) {
-            TransferEditorView()
-        }
     }
 }
 
@@ -73,9 +71,12 @@ struct AccountRow: View {
             SettingsIcon(systemName: kind.symbol, color: kind.color, size: 32)
             VStack(alignment: .leading, spacing: 2) {
                 Text(name).lineLimit(1)
-                Text(kind.title)
-                    .font(.footnote)
-                    .foregroundStyle(.secondary)
+                // "Bargeld / Bargeld" says nothing; show the type only when the name differs.
+                if name.caseInsensitiveCompare(kind.title) != .orderedSame {
+                    Text(kind.title)
+                        .font(.footnote)
+                        .foregroundStyle(.secondary)
+                }
             }
             Spacer()
             Text(Money.format(balance))

@@ -8,6 +8,7 @@
 
 import SwiftUI
 import Charts
+import UIKit
 
 struct MonthlyReportView: View {
     let expenses: [Expense]
@@ -312,13 +313,14 @@ struct ReportPDFPage: View {
             ReportHeaderCard(report: report)
             if !report.insights.isEmpty { ReportInsightsCard(report: report) }
             ReportComparisonCard(report: report)
-            Spacer(minLength: 0)
             Text("Created with PHINANZ on this iPhone. Your data never left the device.")
                 .font(.caption2)
                 .foregroundStyle(.secondary)
         }
         .padding(32)
-        .frame(width: ReportPDF.pageSize.width, height: ReportPDF.pageSize.height, alignment: .top)
+        // Natural height; the renderer scales it down to fit one A4 page.
+        .frame(width: ReportPDF.pageSize.width, alignment: .top)
+        .fixedSize(horizontal: false, vertical: true)
         .background(Color(uiColor: .systemGroupedBackground))
         .environment(\.colorScheme, .light)
     }
@@ -336,7 +338,7 @@ enum ReportPDF {
     @MainActor
     static func write(_ report: MonthlyReport) throws -> URL {
         let renderer = ImageRenderer(content: ReportPDFPage(report: report))
-        renderer.proposedSize = ProposedViewSize(pageSize)
+        renderer.proposedSize = ProposedViewSize(width: pageSize.width, height: nil)
         let data = NSMutableData()
         var failed = true
         renderer.render { size, draw in
@@ -345,9 +347,11 @@ enum ReportPDF {
                   let pdf = CGContext(consumer: consumer, mediaBox: &box, nil)
             else { return }
             pdf.beginPDFPage(nil)
-            // Scale down if the content is taller than the page.
-            let scale = min(1, pageSize.height / max(size.height, 1))
-            pdf.translateBy(x: 0, y: pageSize.height - size.height * scale)
+            // Page background, then the content scaled down to fit and centred.
+            pdf.setFillColor(UIColor.systemGroupedBackground.resolvedColor(with: UITraitCollection(userInterfaceStyle: .light)).cgColor)
+            pdf.fill(box)
+            let scale = min(1, pageSize.height / max(size.height, 1), pageSize.width / max(size.width, 1))
+            pdf.translateBy(x: (pageSize.width - size.width * scale) / 2, y: pageSize.height - size.height * scale)
             pdf.scaleBy(x: scale, y: scale)
             draw(pdf)
             pdf.endPDFPage()

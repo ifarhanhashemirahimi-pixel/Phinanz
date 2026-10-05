@@ -12,7 +12,8 @@ import SwiftData
 /// "Savings Goals" section for the Plan tab.
 struct GoalsSection: View {
     @Query(sort: \SavingsGoal.createdAt) private var goals: [SavingsGoal]
-    @State private var showNew = false
+    /// Owned by the list: sheets attached to a Section inside a List don't present reliably.
+    @Binding var showNew: Bool
 
     var body: some View {
         Section {
@@ -35,9 +36,6 @@ struct GoalsSection: View {
             if goals.isEmpty {
                 Text("Saving for a trip, a laptop or a safety cushion? PHINANZ tells you how much to put aside each month.")
             }
-        }
-        .sheet(isPresented: $showNew) {
-            GoalEditorView(goal: nil)
         }
     }
 }

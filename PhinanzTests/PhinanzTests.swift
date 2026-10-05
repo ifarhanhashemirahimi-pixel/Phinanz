@@ -175,8 +175,19 @@ struct CSVExporterTests {
         let expense = Expense(store: "Rewe", amount: 45.8, category: .groceries, date: utcDate(2026, 10, 3, 18, 45))
         let csv = CSVExporter.csv(for: [expense], calendar: utc)
         let lines = csv.split(separator: "\r\n").map(String.init)
-        #expect(lines[0] == "Date;Time;Type;Store;Category;Amount (EUR);Note;Source")
-        #expect(lines[1] == "2026-10-03;18:45;Expense;Rewe;Groceries;45,80;;Manual")
+        // Column titles follow the app language; the format does not.
+        #expect(lines[0] == CSVExporter.header.joined(separator: ";"))
+        #expect(lines[0].split(separator: ";").count == 8)
+        let fields = lines[1].split(separator: ";", omittingEmptySubsequences: false).map(String.init)
+        #expect(fields.count == 8)
+        #expect(fields[0] == "2026-10-03")
+        #expect(fields[1] == "18:45")
+        #expect(fields[2] == String(localized: "Expense"))
+        #expect(fields[3] == "Rewe")
+        #expect(fields[4] == ExpenseCategory.groceries.title)
+        #expect(fields[5] == "45,80")
+        #expect(fields[6] == "")
+        #expect(fields[7] == ExpenseSource.manual.title)
     }
 
     @Test func quotesSeparatorsAndNeutralisesFormulas() {

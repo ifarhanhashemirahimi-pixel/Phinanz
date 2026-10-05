@@ -40,6 +40,8 @@ final class PrivacyShield {
 
         let window = UIWindow(windowScene: scene)
         window.windowLevel = .alert + 1
+        // Follow a light/dark override of the app's own windows.
+        window.overrideUserInterfaceStyle = scene.windows.first?.overrideUserInterfaceStyle ?? .unspecified
         let host = UIHostingController(rootView: LockScreenView(lock: lock))
         host.view.backgroundColor = .systemBackground
         window.rootViewController = host

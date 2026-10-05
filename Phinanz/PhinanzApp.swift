@@ -18,9 +18,6 @@ struct PhinanzApp: App {
     private let container: ModelContainer
 
     init() {
-        #if DEBUG
-        DebugFlags.applyLanguageRequest()
-        #endif
         container = Persistence.shared
         DataProtection.removeTemporaryExports()
         let uiTesting = AppEnvironment.isUITest || AppEnvironment.isDemo
@@ -51,6 +48,8 @@ struct PhinanzApp: App {
             .task {
                 await SnapshotRenderer.runIfRequested()
                 await DemoTour.runIfRequested(lock: lock)
+                // Last, so this launch keeps its own language and number format.
+                DebugFlags.applyLanguageRequest()
             }
             #endif
             .onChange(of: scenePhase) { _, phase in
