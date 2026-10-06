@@ -9,6 +9,14 @@ Wie ein persönlicher Buchhalter fasst PHINANZ am Monatsanfang den Vormonat in e
 Gemacht für den deutschen Markt (Euro, deutsche Zahlenformate, deutsche Banken), auf Deutsch, Englisch und Persisch (von rechts nach links), im hellen und im dunklen Design.
 
 <p align="center">
+  <a href="docs/media/PHINANZ-2.2-Promo.mp4"><img src="docs/media/PHINANZ-2.2-Teaser.gif" width="640" alt="PHINANZ 2.2 in Bewegung: Apple Intelligence, Monatsrückblick, Steuer-Hinweise und drei Sprachen"></a>
+</p>
+<p align="center">
+  ▶️ <a href="docs/media/PHINANZ-2.2-Promo.mp4"><b>Ganzes Video ansehen</b></a> (72 Sekunden, MP4, 12 MB) – Texte auf Deutsch, englische Untertitel im Bild.<br>
+  Untertitel als Datei: <a href="docs/media/PHINANZ-2.2-Promo.de.srt">Deutsch</a> · <a href="docs/media/PHINANZ-2.2-Promo.en.srt">Englisch</a>
+</p>
+
+<p align="center">
   <img src="docs/screenshots/journal.png" width="200" alt="Journal: eine Seite pro Tag">
   <img src="docs/screenshots/summary.png" width="200" alt="Übersicht mit Diagramm">
   <img src="docs/screenshots/report.png" width="200" alt="Monatsbericht">
@@ -95,6 +103,10 @@ Gemacht für den deutschen Markt (Euro, deutsche Zahlenformate, deutsche Banken)
 **KI-Import:** Auf einem iPhone 15 Pro oder neuer mit eingeschalteter Apple Intelligence funktioniert er sofort. Optional für Gemini: einen Schlüssel im [Google AI Studio](https://aistudio.google.com/apikey) erstellen, dann in der App unter **Einstellungen → Google Gemini** den Schalter **Google Gemini verwenden** einschalten, den Schlüssel einfügen und auf **API-Schlüssel sichern** tippen.
 
 **iCloud-Abgleich (optional):** braucht ein kostenpflichtiges Apple-Developer-Konto. Die Schritte stehen in der [englischen Anleitung](docs/README.en.md).
+
+## Markt
+
+Wo stünde PHINANZ in Deutschland und in den USA? Wettbewerber, Preise, Zielgruppen, Chancen und Risiken stehen in der [Marktanalyse](docs/MARKTANALYSE.md) (Stand: Oktober 2026).
 
 ## Versionen
 

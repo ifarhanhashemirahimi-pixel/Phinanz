@@ -1,0 +1,51 @@
+1
+00:00:00,300 --> 00:00:03,800
+PHINANZ – Dein Finanztagebuch fürs iPhone.
+
+2
+00:00:04,300 --> 00:00:08,800
+Wohin ist mein Geld geflossen? – Ohne Bankzugang. Ohne Abtippen. Mit KI direkt auf dem iPhone.
+
+3
+00:00:09,300 --> 00:00:14,300
+Ein Tag. Eine Seite. – Ausgaben und Einnahmen auf einen Blick – mit Tagessumme und Wochenleiste.
+
+4
+00:00:14,800 --> 00:00:20,800
+KI, die dein iPhone nicht verlässt. – Sprachnotiz, Beleg oder PDF – Apple Intelligence liest direkt auf dem Gerät. Kein Schlüssel, keine Cloud.
+
+5
+00:00:21,300 --> 00:00:26,800
+Du hast das letzte Wort. – Jeder Vorschlag landet zuerst in der Prüfansicht. Bank-CSV von Sparkasse, ING, DKB & Co. geht sogar offline.
+
+6
+00:00:27,300 --> 00:00:32,800
+Dein Monat in drei Sätzen. – Wenn ein neuer Monat beginnt, erklärt PHINANZ den Vormonat – einfach und verständlich.
+
+7
+00:00:33,300 --> 00:00:38,800
+Gut vorbereitet für die Steuer. – Spenden, Fachbücher, Handwerker: PHINANZ merkt sie sich für die Steuererklärung. Ein Hinweis, keine Beratung.
+
+8
+00:00:39,300 --> 00:00:44,300
+Was hat sich verändert? – Monatsbericht mit Vergleich, Diagramme und ein PDF zum Teilen.
+
+9
+00:00:44,800 --> 00:00:49,800
+Konten, Budgets, Sparziele. – Girokonto, Bargeld, Karte – Budgets mit Warnung und Sparziele mit Monatsrate.
+
+10
+00:00:50,300 --> 00:00:55,300
+Kein Konto. Kein Tracking. – Face ID, verschlüsselte Datenbank, AES-256-Backups. Deine Daten bleiben bei dir.
+
+11
+00:00:55,800 --> 00:01:00,300
+Drei Sprachen.
+
+12
+00:01:00,800 --> 00:01:06,300
+Gebaut mit Apples Werkzeugen. – 107 automatische Tests · keine Bibliotheken von Drittanbietern
+
+13
+00:01:06,800 --> 00:01:11,800
+PHINANZ – Dein Geld. Dein Tagebuch. Dein iPhone.

@@ -1,0 +1,51 @@
+1
+00:00:00,300 --> 00:00:03,800
+PHINANZ – your money journal for iPhone.
+
+2
+00:00:04,300 --> 00:00:08,800
+Where did my money go? No bank login. No typing. AI right on your iPhone.
+
+3
+00:00:09,300 --> 00:00:14,300
+One day, one page: spending and income at a glance.
+
+4
+00:00:14,800 --> 00:00:20,800
+Voice note, receipt or PDF – read by Apple Intelligence on the device. No key, no cloud.
+
+5
+00:00:21,300 --> 00:00:26,800
+Every suggestion is reviewed first – and bank CSV files even work offline.
+
+6
+00:00:27,300 --> 00:00:32,800
+When a new month starts, PHINANZ explains the last one in plain words.
+
+7
+00:00:33,300 --> 00:00:38,800
+Donations, books, tradespeople – kept for your tax return. Hints, not tax advice.
+
+8
+00:00:39,300 --> 00:00:44,300
+What changed? A monthly report, charts and a PDF to share.
+
+9
+00:00:44,800 --> 00:00:49,800
+Accounts, budgets and savings goals – with a monthly amount for every goal.
+
+10
+00:00:50,300 --> 00:00:55,300
+No account, no tracking. Face ID, an encrypted database and AES-256 backups.
+
+11
+00:00:55,800 --> 00:01:00,300
+Three languages: German, English and Persian (right to left).
+
+12
+00:01:00,800 --> 00:01:06,300
+Built with Apple frameworks – 107 automated tests, no third-party libraries.
+
+13
+00:01:06,800 --> 00:01:11,800
+Your money. Your journal. Your iPhone.
